@@ -1,6 +1,5 @@
 export const Apple = ({ className }: { className?: string }) => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <title>Apple</title>
     <path
       d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
       fill="currentColor"
@@ -10,7 +9,6 @@ export const Apple = ({ className }: { className?: string }) => (
 
 export const ICloudColor = ({ className }: { className?: string }) => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <title>iCloud Mail</title>
     <path
       d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"
       fill="#3D8EF0"
@@ -30,7 +28,6 @@ export const GmailColor = ({ className }: { className?: string }) => (
 
 export const Microsoft = ({ className }: { className?: string }) => (
   <svg role="img" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <title>Microsoft</title>
     <path
       d="M0 32h214.6v214.6H0V32zm233.4 0H448v214.6H233.4V32zM0 265.4h214.6V480H0V265.4zm233.4 0H448V480H233.4V265.4z"
       fill="var(--icon-color)"
@@ -154,7 +151,7 @@ export const YahooColor = ({ className }: { className?: string }) => (
     <path
       d="M0 732.88h645.84l376.07 962.1 380.96-962.1h628.76l-946.8 2277.62H451.98l259.19-603.53L.02 732.88zm2763.84 768.75h-704.26L2684.65 0l701.69.03-622.5 1501.6zm-519.78 143.72c216.09 0 391.25 175.17 391.25 391.22 0 216.06-175.16 391.23-391.25 391.23-216.06 0-391.19-175.17-391.19-391.23 0-216.05 175.16-391.22 391.19-391.22z"
       fill="#5f01d1"
-      fill-rule="nonzero"
+      fillRule="nonzero"
     />
   </svg>
 );
