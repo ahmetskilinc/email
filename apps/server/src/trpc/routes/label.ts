@@ -1,17 +1,10 @@
-import { activeDriverProcedure, createRateLimiterMiddleware, router } from '../trpc';
+import { activeDriverProcedure, router } from '../trpc';
 import { resolveAccessToken } from '../../lib/server-utils';
 import { createDriver } from '../../lib/driver';
-import { Ratelimit } from '@upstash/ratelimit';
 import { z } from 'zod';
 
 export const labelsRouter = router({
   list: activeDriverProcedure
-    .use(
-      createRateLimiterMiddleware({
-        generatePrefix: ({ sessionUser }) => `ratelimit:get-labels-${sessionUser?.id}`,
-        limiter: Ratelimit.slidingWindow(120, '1m'),
-      }),
-    )
     .output(
       z.array(
         z.object({
@@ -40,12 +33,6 @@ export const labelsRouter = router({
       return driver.getUserLabels();
     }),
   create: activeDriverProcedure
-    .use(
-      createRateLimiterMiddleware({
-        generatePrefix: ({ sessionUser }) => `ratelimit:labels-post-${sessionUser?.id}`,
-        limiter: Ratelimit.slidingWindow(60, '1m'),
-      }),
-    )
     .input(
       z.object({
         name: z.string(),
@@ -73,12 +60,6 @@ export const labelsRouter = router({
       return driver.createLabel(input);
     }),
   update: activeDriverProcedure
-    .use(
-      createRateLimiterMiddleware({
-        generatePrefix: ({ sessionUser }) => `ratelimit:labels-patch-${sessionUser?.id}`,
-        limiter: Ratelimit.slidingWindow(60, '1m'),
-      }),
-    )
     .input(
       z.object({
         id: z.string(),
@@ -106,12 +87,6 @@ export const labelsRouter = router({
       return driver.updateLabel(id, label);
     }),
   delete: activeDriverProcedure
-    .use(
-      createRateLimiterMiddleware({
-        generatePrefix: ({ sessionUser }) => `ratelimit:labels-delete-${sessionUser?.id}`,
-        limiter: Ratelimit.slidingWindow(60, '1m'),
-      }),
-    )
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { activeConnection } = ctx;

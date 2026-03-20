@@ -1,17 +1,9 @@
-import { createRateLimiterMiddleware, privateProcedure, publicProcedure, router } from '../trpc';
+import { privateProcedure, publicProcedure, router } from '../trpc';
 import { defaultUserSettings, userSettingsSchema, type UserSettings } from '../../lib/schemas';
 import { getzeitmailDB } from '../../lib/server-utils';
-import { Ratelimit } from '@upstash/ratelimit';
 
 export const settingsRouter = router({
-  get: publicProcedure
-    .use(
-      createRateLimiterMiddleware({
-        limiter: Ratelimit.slidingWindow(120, '1m'),
-        generatePrefix: ({ sessionUser }) => `ratelimit:get-settings-${sessionUser?.id}`,
-      }),
-    )
-    .query(async ({ ctx }) => {
+  get: publicProcedure.query(async ({ ctx }) => {
       if (!ctx.sessionUser) return { settings: defaultUserSettings };
 
       const { sessionUser } = ctx;
