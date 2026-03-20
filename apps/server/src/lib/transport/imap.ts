@@ -312,11 +312,6 @@ export async function getThread(
         }
       }
 
-      console.log(`[imap:getThread] scanFolder ${folder}`, {
-        rootMsgId,
-        matchedUids: matchingUids.length,
-      });
-
       const msgs: Record<string, unknown>[] = [];
       for (const uid of matchingUids) {
         const msg = await fetchMessageByUid(client, uid, threadId, folder);
@@ -330,7 +325,6 @@ export async function getThread(
   };
 
   try {
-    console.log('[imap:getThread] start', { threadId, rootMsgId });
     await client.connect();
     const allMessages: Record<string, unknown>[] = [];
     let foundFolder = 'INBOX';
@@ -363,11 +357,7 @@ export async function getThread(
     const hasUnread = allMessages.some((m) => m['unread'] === true);
     const nonDrafts = allMessages.filter((m) => !m['isDraft']);
     const latest = allMessages[allMessages.length - 1];
-    console.log('[imap:getThread] done', {
-      threadId,
-      totalMessages: allMessages.length,
-      foundFolder,
-    });
+
     return {
       messages: allMessages,
       latest,

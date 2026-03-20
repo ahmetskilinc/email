@@ -5,8 +5,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFetching, type UseQueryResult } from '@tanstack/react-query';
 import type { ParsedDraft } from '../../../server/src/lib/driver/types';
-import { useOptimisticActions } from '@/hooks/use-optimistic-actions';
 import { focusedIndexAtom } from '@/hooks/use-mail-navigation';
+import { cleanNameDisplay } from '@/lib/mail/display-format';
 import { useThread, useThreads } from '@/hooks/use-threads';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
 import { useTRPC } from '@/providers/query-provider';
@@ -21,12 +21,6 @@ import { Skeleton } from '../ui/skeleton';
 import { Avatar } from '../ui/avatar';
 import { useQueryState } from 'nuqs';
 import { useAtom } from 'jotai';
-
-function cleanNameDisplay(name?: string) {
-  if (!name) return '';
-  const match = name.match(/^[^\p{L}\p{N}.]*(.*?)[^\p{L}\p{N}.]*$/u);
-  return match ? match[1] : name;
-}
 
 function MailListInlineSpinner() {
   return (
@@ -67,7 +61,7 @@ function MailListRow({
 }: MailListRowProps) {
   if (loading) {
     return (
-      <div className="select-none border-b md:my-1 md:border-none">
+      <div className="border-b select-none md:my-1 md:border-none">
         <div className="group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm">
           <div className="flex w-full items-center justify-between gap-4 px-4">
             <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
@@ -84,7 +78,7 @@ function MailListRow({
   const showBorder = !unread || isSelected;
 
   return (
-    <div className={cn('select-none border-b md:my-1 md:border-none')} onClick={onClick}>
+    <div className={cn('border-b select-none md:my-1 md:border-none')} onClick={onClick}>
       <div
         className={cn(
           'hover:bg-offsetLight dark:hover:bg-primary/5 group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm hover:opacity-100',
@@ -151,7 +145,7 @@ function MailListRow({
                 {date ? (
                   <p
                     className={cn(
-                      'text-muted-foreground text-nowrap text-xs font-normal opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]',
+                      'text-muted-foreground text-xs font-normal text-nowrap opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]',
                       isSelected && 'opacity-100',
                     )}
                   >
@@ -179,7 +173,7 @@ interface MailListItemWrapperProps {
 }
 
 const ThreadItem = memo(
-  function ThreadItem({ message, onClick, isKeyboardFocused }: MailListItemWrapperProps) {
+  ({ message, onClick, isKeyboardFocused }: MailListItemWrapperProps) => {
     const { folder } = useParams<{ folder: string }>();
     const [threadId] = useQueryState('threadId');
     const isFolderSent = folder === FOLDERS.SENT;
@@ -267,7 +261,7 @@ const ThreadItem = memo(
     Object.is(prev.onClick, next.onClick),
 );
 
-const DraftItem = memo(function DraftItem({ message }: MailListItemWrapperProps) {
+const DraftItem = memo(({ message }: MailListItemWrapperProps) => {
   const draftQuery = useDraft(message.id) as UseQueryResult<ParsedDraft>;
   const draft = draftQuery.data;
   const [, setComposeOpen] = useQueryState('isComposeOpen');
@@ -299,145 +293,132 @@ const DraftItem = memo(function DraftItem({ message }: MailListItemWrapperProps)
   );
 });
 
-export const MailList = memo(
-  function MailList() {
-    const { folder } = useParams<{ folder: string }>();
-    const { data: settingsData } = useSettings();
-    const [, setThreadId] = useQueryState('threadId');
-    const [, setDraftId] = useQueryState('draftId');
-    const [isMounted, setIsMounted] = useState(false);
+export function MailList() {
+  const { folder } = useParams<{ folder: string }>();
+  const { data: settingsData } = useSettings();
+  const [, setThreadId] = useQueryState('threadId');
+  const [, setDraftId] = useQueryState('draftId');
+  const [isMounted, setIsMounted] = useState(false);
 
-    useEffect(() => {
-      setIsMounted(true);
-    }, []);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-    const [{ refetch, isLoading, isFetching, isFetchingNextPage, hasNextPage }, items, , loadMore] =
-      useThreads();
-    const trpc = useTRPC();
-    const isFetchingMail = useIsFetching({ queryKey: trpc.mail.get.queryKey() }) > 0;
-    const itemsRef = useRef(items);
-    const parentRef = useRef<HTMLDivElement>(null);
-    const vListRef = useRef<VListHandle>(null);
+  const [{ refetch, isLoading, isFetching, isFetchingNextPage, hasNextPage }, items, , loadMore] =
+    useThreads();
+  const trpc = useTRPC();
+  const isFetchingMail = useIsFetching({ queryKey: trpc.mail.get.queryKey() }) > 0;
+  const itemsRef = useRef(items);
+  const parentRef = useRef<HTMLDivElement>(null);
+  const vListRef = useRef<VListHandle>(null);
 
-    useEffect(() => {
-      itemsRef.current = items;
-    }, [items]);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
-    useEffect(() => {
-      const handleRefresh = () => {
-        void refetch();
-      };
+  useEffect(() => {
+    const handleRefresh = () => {
+      void refetch();
+    };
 
-      window.addEventListener('refreshMailList', handleRefresh);
-      return () => window.removeEventListener('refreshMailList', handleRefresh);
-    }, [refetch]);
+    window.addEventListener('refreshMailList', handleRefresh);
+    return () => window.removeEventListener('refreshMailList', handleRefresh);
+  }, [refetch]);
 
-    const handleNavigateToThread = useCallback(
-      (threadId: string | null) => {
-        setThreadId(threadId);
-        return;
-      },
-      [setThreadId],
-    );
+  const handleNavigateToThread = useCallback(
+    (threadId: string | null) => {
+      setThreadId(threadId);
+      return;
+    },
+    [setThreadId],
+  );
 
-    const [, setFocusedIndex] = useAtom(focusedIndexAtom);
+  const [, setFocusedIndex] = useAtom(focusedIndexAtom);
 
-    const { optimisticMarkAsRead } = useOptimisticActions();
-    const handleMailClick = useCallback(
-      (message: ParsedMessage) => async () => {
-        const autoRead = settingsData?.settings?.autoRead ?? true;
+  const handleMailClick = useCallback(
+    (message: ParsedMessage) => async () => {
+      const autoRead = settingsData?.settings?.autoRead ?? true;
 
-        const messageThreadId = message.threadId ?? message.id;
-        const clickedIndex = itemsRef.current.findIndex((item) => item.id === messageThreadId);
-        setFocusedIndex(clickedIndex);
-        if (message.unread && autoRead) optimisticMarkAsRead([messageThreadId], true);
-        setThreadId(messageThreadId);
-        setDraftId(null);
-      },
-      [setFocusedIndex, optimisticMarkAsRead, setThreadId, setDraftId, settingsData],
-    );
+      const messageThreadId = message.threadId ?? message.id;
+      const clickedIndex = itemsRef.current.findIndex((item) => item.id === messageThreadId);
+      setFocusedIndex(clickedIndex);
+      setThreadId(messageThreadId);
+      setDraftId(null);
+    },
+    [setFocusedIndex, setThreadId, setDraftId, settingsData],
+  );
 
-    const Comp = useMemo(() => (folder === FOLDERS.DRAFT ? DraftItem : ThreadItem), [folder]);
+  const Comp = useMemo(() => (folder === FOLDERS.DRAFT ? DraftItem : ThreadItem), [folder]);
 
-    const vListRenderer = useCallback(
-      (index: number) => {
-        const item = items[index];
-        return item ? (
-          <>
-            <Comp key={item.id} message={item} onClick={handleMailClick} />
-            {index === items.length - 1 && (isFetchingNextPage || isFetchingMail) ? (
-              <div className="flex w-full justify-center py-4">
-                <MailListInlineSpinner />
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <></>
-        );
-      },
-      [
-        folder,
-        items,
-        isFetchingMail,
-        isFetchingNextPage,
-        handleMailClick,
-        isLoading,
-        isFetching,
-        hasNextPage,
-      ],
-    );
-
-    return (
+  const vListRenderer = useCallback(
+    (item: MailListItemWrapperProps['message'], index: number) => (
       <>
-        <div ref={parentRef} className="hide-link-indicator flex h-full w-full">
-          {!isMounted || isLoading ? (
-            <div className="flex h-32 w-full items-center justify-center">
+        <Comp key={item.id} message={item} onClick={handleMailClick} />
+        {index === items.length - 1 && (isFetchingNextPage || isFetchingMail) ? (
+          <div className="flex w-full justify-center py-4">
+            <MailListInlineSpinner />
+          </div>
+        ) : null}
+      </>
+    ),
+    [Comp, items.length, isFetchingMail, isFetchingNextPage, handleMailClick],
+  );
+
+  const handleVListScroll = useCallback(
+    (scrollOffset: number) => {
+      const h = vListRef.current;
+      if (!h) return;
+      const endIndex = h.findItemIndex(scrollOffset + h.viewportSize - 1);
+      if (
+        Math.abs(items.length - 1 - endIndex) < 7 &&
+        !isLoading &&
+        !isFetchingNextPage &&
+        !isFetchingMail &&
+        hasNextPage
+      ) {
+        void loadMore();
+      }
+    },
+    [items.length, isLoading, isFetchingNextPage, isFetchingMail, hasNextPage, loadMore],
+  );
+
+  return (
+    <>
+      <div ref={parentRef} className="hide-link-indicator flex h-full w-full">
+        {!isMounted || isLoading ? (
+          <div className="flex h-32 w-full items-center justify-center">
+            <MailListInlineSpinner />
+          </div>
+        ) : !items || items.length === 0 ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <p className="text-lg">It&apos;s empty here</p>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col" id="mail-list-scroll">
+            <VList
+              ref={vListRef}
+              data={items}
+              bufferSize={500}
+              itemSize={100}
+              className="flex-1 overflow-x-hidden"
+              onScroll={handleVListScroll}
+            >
+              {vListRenderer}
+            </VList>
+          </div>
+        )}
+      </div>
+      <div className="w-full pt-2 text-center">
+        {isFetching ? (
+          <div className="text-center">
+            <div className="mx-auto">
               <MailListInlineSpinner />
             </div>
-          ) : !items || items.length === 0 ? (
-            <div className="flex h-full w-full items-center justify-center">
-              <p className="text-lg">It&apos;s empty here</p>
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col" id="mail-list-scroll">
-              <VList
-                ref={vListRef}
-                count={items.length}
-                overscan={5}
-                itemSize={100}
-                className="flex-1 overflow-x-hidden"
-                onScroll={() => {
-                  if (!vListRef.current) return;
-                  const endIndex = vListRef.current.findEndIndex();
-                  if (
-                    Math.abs(items.length - 1 - endIndex) < 7 &&
-                    !isLoading &&
-                    !isFetchingNextPage &&
-                    !isFetchingMail &&
-                    hasNextPage
-                  ) {
-                    void loadMore();
-                  }
-                }}
-              >
-                {vListRenderer}
-              </VList>
-            </div>
-          )}
-        </div>
-        <div className="w-full pt-2 text-center">
-          {isFetching ? (
-            <div className="text-center">
-              <div className="mx-auto">
-                <MailListInlineSpinner />
-              </div>
-            </div>
-          ) : (
-            <div className="h-2" />
-          )}
-        </div>
-      </>
-    );
-  },
-  () => true,
-);
+          </div>
+        ) : (
+          <div className="h-2" />
+        )}
+      </div>
+    </>
+  );
+}

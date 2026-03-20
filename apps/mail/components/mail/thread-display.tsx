@@ -1,46 +1,20 @@
 'use client';
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Archive, ArchiveX, Ellipsis, Inbox, Reply, Star, Trash, X, Zap } from 'lucide-react';
-import { useOptimisticThreadState } from '@/components/mail/optimistic-thread-state';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useOptimisticActions } from '@/hooks/use-optimistic-actions';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { focusedIndexAtom } from '@/hooks/use-mail-navigation';
-import { type ThreadDestination } from '@/lib/thread-actions';
-import { useThread, useThreads } from '@/hooks/use-threads';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Attachment, ParsedMessage } from '@/types';
+import { Tooltip, TooltipTrigger } from '../ui/tooltip';
 import { useAnimations } from '@/hooks/use-animations';
 import { AnimatePresence, motion } from 'motion/react';
+import { useCallback, useMemo, useState } from 'react';
 import { MailDisplaySkeleton } from './mail-skeleton';
-import { useTRPC } from '@/providers/query-provider';
-import { useMutation } from '@tanstack/react-query';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Button } from '@/components/ui/button';
+import { useThread } from '@/hooks/use-threads';
 import ReplyCompose from './reply-composer';
-import { useParams } from 'next/navigation';
-import { cn, FOLDERS } from '@/lib/utils';
 import MailDisplay from './mail-display';
+import { Button } from '../ui/button';
 import { useQueryState } from 'nuqs';
-import { format } from 'date-fns';
-import { useAtom } from 'jotai';
-import { toast } from 'sonner';
-
-const formatFileSize = (size: number) => {
-  const sizeInMB = (size / (1024 * 1024)).toFixed(2);
-  return sizeInMB === '0.00' ? '' : `${sizeInMB} MB`;
-};
-
-const cleanNameDisplay = (name?: string) => {
-  if (!name) return '';
-  return name.replace(/["<>]/g, '');
-};
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ThreadDisplayProps {
   threadParam?: any;
@@ -53,26 +27,15 @@ interface ThreadDisplayProps {
 const isFullscreen = false;
 export function ThreadDisplay() {
   const isMobile = useIsMobile();
-  const params = useParams<{ folder: string }>();
 
-  const folder = params?.folder ?? 'inbox';
-  const [id, setThreadId] = useQueryState('threadId');
+  const [id, _] = useQueryState('threadId');
 
   const { data: emailData, isLoading, refetch: refetchThread } = useThread(id ?? null);
-
-  useEffect(() => {
-    if (!id || emailData) return;
-    refetchThread();
-  }, [id]);
-  const [, items] = useThreads();
-  const [isStarred, setIsStarred] = useState(false);
-  const [isImportant, setIsImportant] = useState(false);
 
   const [navigationDirection, setNavigationDirection] = useState<'previous' | 'next' | null>(null);
 
   const animationsEnabled = useAnimations();
 
-  // Collect all attachments from all messages in the thread
   const allThreadAttachments = useMemo(() => {
     if (!emailData?.messages) return [];
     return emailData.messages.reduce<Attachment[]>((acc, message) => {
@@ -83,125 +46,13 @@ export function ThreadDisplay() {
     }, []);
   }, [emailData?.messages]);
 
-  const [mode, setMode] = useQueryState('mode');
-  const [activeReplyId, setActiveReplyId] = useQueryState('activeReplyId');
-  const [, setDraftId] = useQueryState('draftId');
-
-  const [focusedIndex, setFocusedIndex] = useAtom(focusedIndexAtom);
-  const trpc = useTRPC();
-  const { mutateAsync: toggleImportant } = useMutation(trpc.mail.toggleImportant.mutationOptions());
-  const [, setIsComposeOpen] = useQueryState('isComposeOpen');
-
-  // Get optimistic state for this thread
-  const optimisticState = useOptimisticThreadState(id ?? '');
-
-  const handleNext = useCallback(() => {
-    if (!id || !items.length || focusedIndex === null) return setThreadId(null);
-    if (focusedIndex < items.length - 1) {
-      const nextIndex = Math.max(1, focusedIndex + 1);
-      //   console.log('nextIndex', nextIndex);
-
-      const nextThread = items[nextIndex];
-      if (nextThread) {
-        setMode(null);
-        setActiveReplyId(null);
-        setDraftId(null);
-        setThreadId(nextThread.id);
-        setFocusedIndex(focusedIndex + 1);
-        if (animationsEnabled) {
-          setNavigationDirection('next');
-        }
-      }
-    }
-  }, [
-    items,
-    id,
-    focusedIndex,
-    setThreadId,
-    setFocusedIndex,
-    setMode,
-    setActiveReplyId,
-    setDraftId,
-    animationsEnabled,
-  ]);
-
-  const isInArchive = folder === FOLDERS.ARCHIVE;
-  const isInSpam = folder === FOLDERS.SPAM;
-  const isInBin = folder === FOLDERS.BIN;
-  const handleClose = useCallback(() => {
-    setThreadId(null);
-    setMode(null);
-    setActiveReplyId(null);
-    setDraftId(null);
-  }, [setThreadId, setMode, setActiveReplyId, setDraftId]);
-
-  const { optimisticMoveThreadsTo } = useOptimisticActions();
-
-  const moveThreadTo = useCallback(
-    async (destination: ThreadDestination) => {
-      if (!id) return;
-
-      setMode(null);
-      setActiveReplyId(null);
-      setDraftId(null);
-
-      optimisticMoveThreadsTo([id], folder, destination);
-      handleNext();
-    },
-    [id, folder, optimisticMoveThreadsTo, handleNext, setMode, setActiveReplyId, setDraftId],
-  );
-
-  const { optimisticToggleStar } = useOptimisticActions();
-
-  const handleToggleStar = useCallback(async () => {
-    if (!emailData || !id) return;
-
-    const newStarredState = !isStarred;
-    optimisticToggleStar([id], newStarredState);
-    setIsStarred(newStarredState);
-  }, [emailData, id, isStarred, optimisticToggleStar]);
-
-  const handleToggleImportant = useCallback(async () => {
-    if (!emailData || !id) return;
-    await toggleImportant({ ids: [id] });
-    await refetchThread();
-    if (isImportant) {
-      toast.success('Marked as Important');
-    } else {
-      toast.error('Failed to mark as important');
-    }
-  }, [emailData, id, toggleImportant, refetchThread, isImportant]);
-
-  // Set initial star state based on email data
-  useEffect(() => {
-    if (emailData?.latest?.tags) {
-      // Check if any tag has the name 'STARRED'
-      setIsStarred(emailData.latest.tags.some((tag) => tag.name === 'STARRED'));
-      setIsImportant(emailData.latest.tags.some((tag) => tag.name === 'IMPORTANT'));
-    }
-  }, [emailData?.latest?.tags]);
-
-  useEffect(() => {
-    if (optimisticState.optimisticStarred !== null) {
-      setIsStarred(optimisticState.optimisticStarred);
-    }
-  }, [optimisticState.optimisticStarred]);
-  useEffect(() => {
-    if (mode && activeReplyId) {
-      setTimeout(() => {
-        const replyElement = document.getElementById(`reply-composer-${activeReplyId}`);
-        if (replyElement) {
-          replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100); // Short delay to ensure the component is rendered
-    }
-  }, [mode, activeReplyId]);
-
   const handleAnimationComplete = useCallback(() => {
     setNavigationDirection(null);
   }, [setNavigationDirection]);
 
-  console.log(emailData);
+  const handleClose = useCallback(() => {
+    console.log('close');
+  }, []);
 
   return (
     <div
@@ -232,9 +83,9 @@ export function ThreadDisplay() {
           </div>
         ) : (
           <>
-            {/* <div
+            <div
               className={cn(
-                'flex shrink-0 items-center px-1 pb-[10px] md:px-3 md:pb-[11px] md:pt-[12px]',
+                'flex shrink-0 items-center px-1 pb-[10px] md:px-3 md:pt-[12px] md:pb-[11px]',
                 isMobile && 'bg-panelLight dark:bg-panelDark sticky top-0 z-10 mt-2',
               )}
             >
@@ -247,82 +98,7 @@ export function ThreadDisplay() {
                   </TooltipTrigger>
                 </Tooltip>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMode('replyAll');
-                    setActiveReplyId(emailData?.latest?.id ?? '');
-                  }}
-                >
-                  <Reply className="text-muted-foreground dark:text-[#9B9B9B]" />
-                  Reply all
-                </Button>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="secondary" size="icon" onClick={handleToggleStar}>
-                      <Star
-                        className={cn(
-                          'ml-[2px] mt-[2.4px] h-5 w-5',
-                          isStarred
-                            ? 'fill-yellow-400 stroke-yellow-400'
-                            : 'fill-transparent stroke-[#9D9D9D] dark:stroke-[#9D9D9D]',
-                        )}
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{isStarred ? 'Unstar' : 'Star'}</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="secondary" size="icon" onClick={() => moveThreadTo('archive')}>
-                      <Archive className="text-iconLight dark:text-iconDark" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Archive</TooltipContent>
-                </Tooltip>
-
-                {!isInBin && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="destructive" size="icon" onClick={() => moveThreadTo('bin')}>
-                        <Trash className="text-[#F43F5E]" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Move to Bin</TooltipContent>
-                  </Tooltip>
-                )}
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon">
-                      <Ellipsis className="text-iconLight dark:text-iconDark" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {isInSpam || isInArchive || isInBin ? (
-                      <DropdownMenuItem onClick={() => moveThreadTo('inbox')}>
-                        <Inbox className="mr-2 h-4 w-4" />
-                        <span>Move to Inbox</span>
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem onClick={() => moveThreadTo('spam')}>
-                        <ArchiveX className="text-iconLight dark:text-iconDark mr-2" />
-                        <span>Move to Spam</span>
-                      </DropdownMenuItem>
-                    )}
-                    {!isImportant && (
-                      <DropdownMenuItem onClick={handleToggleImportant}>
-                        <Zap className="text-iconLight dark:text-iconDark mr-2" />
-                        Mark as Important
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div> */}
+            </div>
             <div className={cn('flex min-h-0 flex-1 flex-col', isMobile && 'h-full')}>
               {animationsEnabled ? (
                 <AnimatePresence mode="wait" initial={false}>
@@ -362,8 +138,6 @@ export function ThreadDisplay() {
                       isFullscreen={isFullscreen}
                       totalReplies={emailData?.totalReplies}
                       allThreadAttachments={allThreadAttachments}
-                      mode={mode || undefined}
-                      activeReplyId={activeReplyId || undefined}
                       isMobile={isMobile}
                     />
                   </motion.div>
@@ -374,22 +148,9 @@ export function ThreadDisplay() {
                   isFullscreen={isFullscreen}
                   totalReplies={emailData?.totalReplies}
                   allThreadAttachments={allThreadAttachments}
-                  mode={mode || undefined}
-                  activeReplyId={activeReplyId || undefined}
                   isMobile={isMobile}
                 />
               )}
-
-              {mode &&
-                activeReplyId &&
-                activeReplyId === emailData.messages[emailData.messages.length - 1]?.id && (
-                  <div
-                    className="border-border bg-panelLight dark:bg-panelDark sticky bottom-0 z-10 border-t px-4 py-2"
-                    id={`reply-composer-${activeReplyId}`}
-                  >
-                    <ReplyCompose messageId={activeReplyId} />
-                  </div>
-                )}
             </div>
           </>
         )}
@@ -410,7 +171,6 @@ interface MessageListProps {
 
 const MessageList = ({
   messages,
-  isFullscreen,
   totalReplies,
   allThreadAttachments,
   mode,
