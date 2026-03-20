@@ -1,33 +1,76 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   color-scheme: dark;
 }
 
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  background-color: #09090b;
+  color: #f4f4f5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-  @apply text-zinc-300 hover:text-white;
+  color: #d4d4d8;
+}
+
+a:hover {
+  color: #ffffff;
 }
 
 input,
 textarea,
 select {
-  @apply rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none;
+  border-radius: 0.375rem;
+  border: 1px solid #3f3f46;
+  background-color: #18181b;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #f4f4f5;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #71717a;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #71717a;
 }
 
 button {
-  @apply rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50;
+  border-radius: 0.375rem;
+  background-color: #f4f4f5;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #18181b;
+}
+
+button:hover {
+  background-color: #ffffff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-secondary {
-  @apply bg-zinc-800 text-zinc-100 hover:bg-zinc-700;
+  background-color: #27272a;
+  color: #f4f4f5;
+}
+
+.btn-secondary:hover {
+  background-color: #3f3f46;
 }
 
 .panel {
-  @apply rounded-lg border border-zinc-800 bg-zinc-900;
+  border-radius: 0.5rem;
+  border: 1px solid #27272a;
+  background-color: #18181b;
 }
