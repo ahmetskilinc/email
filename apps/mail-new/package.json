@@ -20,7 +20,7 @@
     "superjson": "^2.2.2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.13",
+    "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^24.5.2",
     "tailwindcss": "^4.1.13"
   }
