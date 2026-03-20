@@ -1,0 +1,779 @@
+'use client';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RecipientAutosuggest } from '@/components/ui/recipient-autosuggest';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEmailAliases } from '@/hooks/use-email-aliases';
+import type { ImageQuality } from '@/lib/image-compression';
+import useComposeEditor from '@/hooks/use-compose-editor';
+import { compressImages } from '@/lib/image-compression';
+import { gitHubEmojis } from '@tiptap/extension-emoji';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useTRPC } from '@/providers/query-provider';
+import { useMutation } from '@tanstack/react-query';
+import { useSettings } from '@/hooks/use-settings';
+import { cn, formatFileSize } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { serializeFiles } from '@/lib/schemas';
+import { Input } from '@/components/ui/input';
+import { EditorContent } from '@tiptap/react';
+import { Paperclip, X } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { useQueryState } from 'nuqs';
+import pluralize from 'pluralize';
+import { toast } from 'sonner';
+import { z } from 'zod/v4';
+
+const shortcodeRegex = /:([a-zA-Z0-9_+-]+):/g;
+
+interface EmailComposerProps {
+  initialTo?: string[];
+  initialCc?: string[];
+  initialBcc?: string[];
+  initialSubject?: string;
+  initialMessage?: string;
+  initialAttachments?: File[];
+  onSendEmail: (data: {
+    to: string[];
+    cc?: string[];
+    bcc?: string[];
+    subject: string;
+    message: string;
+    attachments: File[];
+    fromEmail?: string;
+    scheduleAt?: string;
+  }) => Promise<void>;
+  onClose?: () => void;
+  className?: string;
+  autofocus?: boolean;
+  settingsLoading?: boolean;
+  editorClassName?: string;
+}
+
+const schema = z.object({
+  to: z.array(z.string().email()).min(1),
+  subject: z.string().min(1),
+  message: z.string().min(1),
+  attachments: z.array(z.any()).optional(),
+  cc: z.array(z.string().email()).optional(),
+  bcc: z.array(z.string().email()).optional(),
+  threadId: z.string().optional(),
+  fromEmail: z.string().optional(),
+});
+
+export function EmailComposer({
+  initialTo = [],
+  initialCc = [],
+  initialBcc = [],
+  initialSubject = '',
+  initialMessage = '',
+  initialAttachments = [],
+  onSendEmail,
+  onClose,
+  className,
+  autofocus = false,
+  settingsLoading = false,
+  editorClassName,
+}: EmailComposerProps) {
+  const { data: aliases } = useEmailAliases();
+  const { data: settings } = useSettings();
+  const [showCc, setShowCc] = useState(initialCc.length > 0);
+  const [showBcc, setShowBcc] = useState(initialBcc.length > 0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [threadId] = useQueryState('threadId');
+  const [isComposeOpen, setIsComposeOpen] = useQueryState('isComposeOpen');
+  const [draftId, setDraftId] = useQueryState('draftId');
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState<string>();
+  const [isScheduleValid, setIsScheduleValid] = useState<boolean>(true);
+  const [showAttachmentWarning, setShowAttachmentWarning] = useState(false);
+  const [originalAttachments, setOriginalAttachments] = useState<File[]>(initialAttachments);
+  const [imageQuality, setImageQuality] = useState<ImageQuality>(
+    settings?.settings?.imageCompression || 'medium',
+  );
+  const [activeReplyId] = useQueryState('activeReplyId');
+
+  const processAndSetAttachments = async (
+    filesToProcess: File[],
+    quality: ImageQuality,
+    showToast: boolean = false,
+  ) => {
+    if (filesToProcess.length === 0) {
+      setValue('attachments', [], { shouldDirty: true });
+      return;
+    }
+
+    try {
+      const compressedFiles = await compressImages(filesToProcess, {
+        quality,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      });
+
+      if (compressedFiles.length !== filesToProcess.length) {
+        setValue('attachments', filesToProcess, { shouldDirty: true });
+        setHasUnsavedChanges(true);
+        if (showToast) {
+          toast.error('Image compression failed, using original files');
+        }
+        return;
+      }
+
+      setValue('attachments', compressedFiles, { shouldDirty: true });
+      setHasUnsavedChanges(true);
+
+      if (showToast && quality !== 'original') {
+        let totalOriginalSize = 0;
+        let totalCompressedSize = 0;
+
+        const imageFilesExist = filesToProcess.some((f) => f.type.startsWith('image/'));
+
+        if (imageFilesExist) {
+          filesToProcess.forEach((originalFile, index) => {
+            if (originalFile.type.startsWith('image/') && compressedFiles[index]) {
+              totalOriginalSize += originalFile.size;
+              totalCompressedSize += compressedFiles[index].size;
+            }
+          });
+
+          if (totalOriginalSize > totalCompressedSize) {
+            const savings = (
+              ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) *
+              100
+            ).toFixed(1);
+            if (parseFloat(savings) > 0.1) {
+              toast.success(`Images compressed: ${savings}% smaller`);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error compressing images:', error);
+      setValue('attachments', filesToProcess, { shouldDirty: true });
+      setHasUnsavedChanges(true);
+      if (showToast) {
+        toast.error('Image compression failed, using original files');
+      }
+    }
+  };
+
+  const attachmentKeywords = [
+    'attachment',
+    'attached',
+    'attaching',
+    'see the file',
+    'see the files',
+  ];
+
+  const trpc = useTRPC();
+  const { mutateAsync: createDraft } = useMutation(trpc.drafts.create.mutationOptions());
+
+  const form = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      to: initialTo,
+      cc: initialCc,
+      bcc: initialBcc,
+      subject: initialSubject,
+      message: initialMessage,
+      attachments: initialAttachments,
+      fromEmail:
+        settings?.settings?.defaultEmailAlias ||
+        aliases?.find((alias) => alias.primary)?.email ||
+        aliases?.[0]?.email ||
+        '',
+    },
+  });
+
+  const { watch, setValue, getValues } = form;
+  const subjectInput = watch('subject');
+  const attachments = watch('attachments');
+  const fromEmail = watch('fromEmail');
+
+  const handleAttachment = async (newFiles: File[]) => {
+    if (newFiles && newFiles.length > 0) {
+      const newOriginals = [...originalAttachments, ...newFiles];
+      setOriginalAttachments(newOriginals);
+      await processAndSetAttachments(newOriginals, imageQuality, true);
+    }
+  };
+
+  const removeAttachment = async (index: number) => {
+    const newOriginals = originalAttachments.filter((_, i) => i !== index);
+    setOriginalAttachments(newOriginals);
+    await processAndSetAttachments(newOriginals, imageQuality);
+    setHasUnsavedChanges(true);
+  };
+
+  const editor = useComposeEditor({
+    initialValue: initialMessage,
+    isReadOnly: isLoading,
+    onLengthChange: () => {
+      setHasUnsavedChanges(true);
+    },
+    onModEnter: () => {
+      void handleSend();
+      return true;
+    },
+    onAttachmentsChange: async (files) => {
+      await handleAttachment(files);
+    },
+    placeholder: 'Start your email here',
+    autofocus,
+  });
+
+  useEffect(() => {
+    if (autofocus && editor) {
+      const timeoutId = setTimeout(() => {
+        editor.commands.focus('end');
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [editor, autofocus]);
+
+  useEffect(() => {
+    if (isComposeOpen === 'true' && editor) {
+      editor.commands.focus();
+    }
+  }, [isComposeOpen, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasContent = editor?.getText()?.trim().length > 0;
+      if (hasContent) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        const hasContent = editor?.getText()?.trim().length > 0;
+        if (hasContent && !draftId) {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowLeaveConfirmation(true);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [editor, draftId]);
+
+  const proceedWithSend = async () => {
+    try {
+      if (isLoading || isSavingDraft) return;
+
+      const values = getValues();
+
+      if (!values.to || values.to.length === 0) {
+        toast.error('Recipient is required');
+        return;
+      }
+
+      if (!isScheduleValid) {
+        toast.error('Please choose a valid date & time for scheduling');
+        return;
+      }
+
+      setIsLoading(true);
+      if (hasUnsavedChanges) await saveDraft();
+
+      await onSendEmail({
+        to: values.to,
+        cc: showCc ? values.cc : undefined,
+        bcc: showBcc ? values.bcc : undefined,
+        subject: values.subject,
+        message: editor.getHTML(),
+        attachments: values.attachments || [],
+        fromEmail: values.fromEmail,
+        scheduleAt,
+      });
+      setHasUnsavedChanges(false);
+      editor.commands.clearContent(true);
+      form.reset();
+      setIsComposeOpen(null);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast.error('Failed to send email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSend = async () => {
+    const values = getValues();
+    const messageText = editor.getText().toLowerCase();
+    const hasAttachmentKeywords = attachmentKeywords.some((keyword) => {
+      const regex = new RegExp(`\\b${keyword.replace(/\s+/g, '\\s+')}\\b`, 'i');
+      return regex.test(messageText);
+    });
+
+    if (hasAttachmentKeywords && (!values.attachments || values.attachments.length === 0)) {
+      setShowAttachmentWarning(true);
+      return;
+    }
+
+    await proceedWithSend();
+  };
+
+  const saveDraft = async () => {
+    const values = getValues();
+
+    if (!hasUnsavedChanges) return;
+    const messageText = editor.getText();
+
+    if (messageText.trim() === initialMessage.trim()) return;
+    if (editor.getHTML() === initialMessage.trim()) return;
+    if (!values.to.length || !values.subject.length || !messageText.length) return;
+
+    try {
+      setIsSavingDraft(true);
+      const draftData = {
+        to: values.to.join(', '),
+        cc: values.cc?.join(', '),
+        bcc: values.bcc?.join(', '),
+        subject: values.subject,
+        message: editor.getHTML(),
+        attachments: await serializeFiles(values.attachments ?? []),
+        id: draftId,
+        threadId: threadId ? threadId : null,
+        fromEmail: values.fromEmail ? values.fromEmail : null,
+      };
+
+      const response = await createDraft(draftData);
+
+      if (response?.id && response.id !== draftId) {
+        setDraftId(response.id);
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error('Failed to save draft');
+      setIsSavingDraft(false);
+      setHasUnsavedChanges(false);
+    } finally {
+      setIsSavingDraft(false);
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      const hasContent = editor?.getText()?.trim().length > 0;
+      if (hasContent && !showLeaveConfirmation) {
+        console.warn('Email composer unmounting with unsaved content');
+      }
+    };
+  }, [editor, showLeaveConfirmation]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const autoSaveTimer = setTimeout(() => {
+      saveDraft();
+    }, 3000);
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [hasUnsavedChanges, saveDraft]);
+
+  useEffect(() => {
+    const handlePasteFiles = (event: ClipboardEvent) => {
+      const clipboardData = event.clipboardData;
+      if (!clipboardData || !clipboardData.files.length) return;
+
+      const pastedFiles = Array.from(clipboardData.files);
+      if (pastedFiles.length > 0) {
+        event.preventDefault();
+        handleAttachment(pastedFiles);
+        toast.success(`${pluralize('file', pastedFiles.length, true)} attached`);
+      }
+    };
+
+    document.addEventListener('paste', handlePasteFiles);
+    return () => {
+      document.removeEventListener('paste', handlePasteFiles);
+    };
+  }, [handleAttachment]);
+
+  useEffect(() => {
+    const preferred =
+      settings?.settings?.defaultEmailAlias ??
+      aliases?.find((a) => a.primary)?.email ??
+      aliases?.[0]?.email;
+
+    if (preferred && getValues('fromEmail') !== preferred) {
+      setValue('fromEmail', preferred, { shouldDirty: false });
+    }
+  }, [settings?.settings?.defaultEmailAlias, aliases, getValues, setValue]);
+
+  const handleQualityChange = async (newQuality: ImageQuality) => {
+    setImageQuality(newQuality);
+    await processAndSetAttachments(originalAttachments, newQuality, true);
+  };
+
+  const handleScheduleChange = useCallback((value?: string) => {
+    setScheduleAt(value);
+  }, []);
+
+  const handleScheduleValidityChange = useCallback((valid: boolean) => {
+    setIsScheduleValid(valid);
+  }, []);
+
+  const replaceEmojiShortcodes = (text: string): string => {
+    if (!text.trim().length || !text.includes(':')) return text;
+    return text.replace(shortcodeRegex, (match, shortcode): string => {
+      const emoji = gitHubEmojis.find(
+        (e) => e.shortcodes.includes(shortcode) || e.name === shortcode,
+      );
+      return emoji?.emoji ?? match;
+    });
+  };
+
+  return (
+    <div
+      className={cn(
+        'flexflex-col overflow-hidden rounded-2xl bg-[#FAFAFA] shadow-sm dark:bg-[#202020]',
+        className,
+      )}
+    >
+      <div className="no-scrollbar dark:bg-panelDark flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl">
+        <div className="shrink-0 overflow-visible border-b border-[#E7E7E7] pb-2 dark:border-[#252525]">
+          <div className="flex justify-between px-3 pt-3">
+            <div className="flex w-full items-center gap-2">
+              <p className="text-sm font-medium text-[#8C8C8C]">To:</p>
+              <RecipientAutosuggest
+                control={form.control}
+                name="to"
+                placeholder="Enter email address"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                tabIndex={-1}
+                className="flex h-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm font-medium text-[#8C8C8C] transition-colors hover:bg-gray-50 hover:text-[#A8A8A8] dark:hover:bg-[#404040]"
+                onClick={() => setShowCc(!showCc)}
+              >
+                <span>Cc</span>
+              </button>
+              <button
+                tabIndex={-1}
+                className="flex h-full cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm font-medium text-[#8C8C8C] transition-colors hover:bg-gray-50 hover:text-[#A8A8A8] dark:hover:bg-[#404040]"
+                onClick={() => setShowBcc(!showBcc)}
+              >
+                <span>Bcc</span>
+              </button>
+            </div>
+          </div>
+
+          <div className={`flex flex-col gap-2 ${showCc || showBcc ? 'pt-2' : ''}`}>
+            {showCc && (
+              <div className="flex items-center gap-2 px-3">
+                <p className="text-sm font-medium text-[#8C8C8C]">Cc:</p>
+                <RecipientAutosuggest
+                  control={form.control}
+                  name="cc"
+                  placeholder="Enter email for Cc"
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+
+            {showBcc && (
+              <div className="flex items-center gap-2 px-3">
+                <p className="text-sm font-medium text-[#8C8C8C]">Bcc:</p>
+                <RecipientAutosuggest
+                  control={form.control}
+                  name="bcc"
+                  placeholder="Enter email for Bcc"
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {!activeReplyId ? (
+          <div className="flex items-center gap-2 border-b p-3">
+            <p className="text-sm font-medium text-[#8C8C8C]">Subject:</p>
+            <input
+              className="h-4 w-full bg-transparent text-sm font-normal leading-normal text-black placeholder:text-[#797979] focus:outline-none dark:text-white/90"
+              placeholder="Re: Design review feedback"
+              value={subjectInput}
+              onChange={(e) => {
+                const value = replaceEmojiShortcodes(e.target.value);
+                setValue('subject', value);
+                setHasUnsavedChanges(true);
+              }}
+            />
+          </div>
+        ) : null}
+
+        {aliases && aliases.length > 1 ? (
+          <div className="flex items-center gap-2 border-b p-3">
+            <p className="text-sm font-medium text-[#8C8C8C]">From:</p>
+            <Select
+              value={fromEmail || ''}
+              onValueChange={(value) => {
+                setValue('fromEmail', value);
+                setHasUnsavedChanges(true);
+              }}
+            >
+              <SelectTrigger className="h-6 flex-1 border-0 bg-transparent p-0 text-sm font-normal text-black placeholder:text-[#797979] focus:outline-none focus:ring-0 dark:text-white/90">
+                <SelectValue placeholder="Select an email address" />
+              </SelectTrigger>
+              <SelectContent>
+                {aliases.map((alias) => (
+                  <SelectItem key={alias.email} value={alias.email}>
+                    <div className="flex flex-row items-center gap-1">
+                      <span className="text-sm">
+                        {alias.name ? `${alias.name} <${alias.email}>` : alias.email}
+                      </span>
+                      {alias.primary && <span className="text-xs text-[#8C8C8C]">Primary</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        <div className="flex-1 overflow-y-auto border-t bg-[#FFFFFF] px-3 py-3 outline-white/5 dark:bg-[#202020]">
+          <div
+            onClick={() => {
+              editor.commands.focus();
+            }}
+            className={cn(`min-h-[200px] w-full`, editorClassName)}
+          >
+            <EditorContent editor={editor} className="h-full w-full max-w-full overflow-x-auto" />
+          </div>
+        </div>
+      </div>
+
+      <div className="inline-flex w-full shrink-0 items-end justify-between self-stretch rounded-b-2xl bg-[#FFFFFF] px-3 py-3 outline-white/5 dark:bg-[#202020]">
+        <div className="flex flex-col items-start justify-start gap-2">
+          <div className="flex items-center justify-start gap-2">
+            <Button
+              onClick={handleSend}
+              disabled={isLoading || settingsLoading || !isScheduleValid}
+            >
+              Send
+            </Button>
+            <Input
+              type="file"
+              id="attachment-input"
+              className="hidden"
+              onChange={async (event) => {
+                const fileList = event.target.files;
+                if (fileList) {
+                  await handleAttachment(Array.from(fileList));
+                }
+              }}
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              ref={fileInputRef}
+              style={{ zIndex: 100 }}
+            />
+            {attachments && attachments.length > 0 && (
+              <Popover modal={true}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="focus-visible:ring-ring flex cursor-pointer items-center gap-1.5 rounded-md border border-[#E7E7E7] bg-white/5 px-2 py-1 text-sm hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-[#2B2B2B]"
+                    aria-label={`View ${attachments.length} attached ${pluralize('file', attachments.length)}`}
+                  >
+                    <Paperclip className="h-3.5 w-3.5 text-[#9A9A9A]" />
+                    <span className="font-medium">{attachments.length}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[340px] rounded-lg p-0 shadow-lg dark:bg-[#202020]"
+                  align="start"
+                  sideOffset={6}
+                >
+                  <div className="flex flex-col">
+                    <div className="border-b border-[#E7E7E7] p-3 dark:border-[#2B2B2B]">
+                      <h4 className="text-sm font-semibold text-black dark:text-white/90">
+                        Attachments
+                      </h4>
+                      <p className="text-muted-foreground text-xs dark:text-[#9B9B9B]">
+                        {pluralize('file', attachments.length, true)}
+                      </p>
+                    </div>
+
+                    <div className="max-h-[250px] flex-1 space-y-0.5 overflow-y-auto p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {attachments.map((file: File, index: number) => {
+                        const nameParts = file.name.split('.');
+                        const extension = nameParts.length > 1 ? nameParts.pop() : undefined;
+                        const nameWithoutExt = nameParts.join('.');
+                        const maxNameLength = 22;
+                        const truncatedName =
+                          nameWithoutExt.length > maxNameLength
+                            ? `${nameWithoutExt.slice(0, maxNameLength)}…`
+                            : nameWithoutExt;
+                        return (
+                          <div
+                            key={file.name + index}
+                            className="group flex items-center justify-between gap-3 rounded-md px-1.5 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[#F0F0F0] dark:bg-[#2C2C2C]">
+                                {file.type.startsWith('image/') ? (
+                                  <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={file.name}
+                                    className="h-full w-full rounded object-cover"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <span className="text-sm" aria-hidden="true">
+                                    {file.type.includes('pdf')
+                                      ? '📄'
+                                      : file.type.includes('excel') ||
+                                          file.type.includes('spreadsheetml')
+                                        ? '📊'
+                                        : file.type.includes('word') ||
+                                            file.type.includes('wordprocessingml')
+                                          ? '📝'
+                                          : '📎'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex min-w-0 flex-1 flex-col">
+                                <p
+                                  className="flex items-baseline text-sm text-black dark:text-white/90"
+                                  title={file.name}
+                                >
+                                  <span className="truncate">{truncatedName}</span>
+                                  {extension && (
+                                    <span className="ml-0.5 shrink-0 text-[10px] text-[#8C8C8C] dark:text-[#9A9A9A]">
+                                      .{extension}
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-muted-foreground text-xs dark:text-[#9B9B9B]">
+                                  {formatFileSize(file.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                try {
+                                  await removeAttachment(index);
+                                } catch (error) {
+                                  console.error('Failed to remove attachment:', error);
+                                  toast.error('Failed to remove attachment');
+                                }
+                              }}
+                              className="focus-visible:ring-ring ml-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2"
+                              aria-label={`Remove ${file.name}`}
+                            >
+                              <X className="text-muted-foreground h-3.5 w-3.5 hover:text-black dark:text-[#9B9B9B] dark:hover:text-white" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={showLeaveConfirmation} onOpenChange={setShowLeaveConfirmation}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Discard message?</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes in your email. Are you sure you want to leave? Your changes
+              will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowLeaveConfirmation(false)}
+              className="cursor-pointer"
+            >
+              Stay
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowLeaveConfirmation(false);
+                onClose?.();
+              }}
+              className="cursor-pointer"
+            >
+              Leave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAttachmentWarning} onOpenChange={setShowAttachmentWarning}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Attachment Warning</DialogTitle>
+            <DialogDescription>
+              Looks like you mentioned an attachment in your message, but there are no files
+              attached. Are you sure you want to send this email?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAttachmentWarning(false)}
+              className="cursor-pointer"
+            >
+              Recheck
+            </Button>
+            <Button
+              onClick={() => {
+                setShowAttachmentWarning(false);
+                void proceedWithSend();
+              }}
+              className="cursor-pointer"
+            >
+              Send Anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
