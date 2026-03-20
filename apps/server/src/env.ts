@@ -17,8 +17,6 @@ export type zeitmailEnv = {
   GOOGLE_CLIENT_SECRET: string;
   MICROSOFT_CLIENT_ID: string;
   MICROSOFT_CLIENT_SECRET: string;
-  REDIS_URL: string;
-  REDIS_TOKEN: string;
   IMAP_SERVICE_URL: string;
   ENCRYPTION_KEY: string;
 };
@@ -39,8 +37,6 @@ export const env: zeitmailEnv = {
   GOOGLE_CLIENT_SECRET: requireEnv('GOOGLE_CLIENT_SECRET'),
   MICROSOFT_CLIENT_ID: requireEnv('MICROSOFT_CLIENT_ID'),
   MICROSOFT_CLIENT_SECRET: requireEnv('MICROSOFT_CLIENT_SECRET'),
-  REDIS_URL: requireEnv('REDIS_URL'),
-  REDIS_TOKEN: requireEnv('REDIS_TOKEN'),
   IMAP_SERVICE_URL: requireEnv('IMAP_SERVICE_URL', 'http://localhost:8789'),
   ENCRYPTION_KEY: requireEnv('ENCRYPTION_KEY'),
 };

@@ -1,10 +1,7 @@
 import { getActiveConnection, getzeitmailDB } from '../lib/server-utils';
-import { Ratelimit, type RatelimitConfig } from '@upstash/ratelimit';
 import { createLoggingMiddleware } from '../lib/trpc-logging';
 import type { HonoContext, HonoVariables } from '../ctx';
 import { initTRPC, TRPCError } from '@trpc/server';
-
-import { redis } from '../lib/services';
 import type { Context } from 'hono';
 import superjson from 'superjson';
 
@@ -88,35 +85,3 @@ export const activeDriverProcedure = activeConnectionProcedure.use(async ({ ctx,
   return res;
 });
 
-export const createRateLimiterMiddleware = (config: {
-  limiter: RatelimitConfig['limiter'];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  generatePrefix: (ctx: TrpcContext, input: any) => string;
-}) =>
-  t.middleware(async ({ next, ctx, input }) => {
-    const ratelimiter = new Ratelimit({
-      redis: redis(),
-      limiter: config.limiter,
-      analytics: true,
-      prefix: config.generatePrefix(ctx, input),
-    });
-    const finalIp =
-      ctx.c.req.header('x-forwarded-for')?.split(',')[0].trim() ??
-      ctx.c.req.header('x-real-ip') ??
-      'no-ip';
-    const { success, limit, reset, remaining } = await ratelimiter.limit(finalIp);
-
-    ctx.c.res.headers.append('X-RateLimit-Limit', limit.toString());
-    ctx.c.res.headers.append('X-RateLimit-Remaining', remaining.toString());
-    ctx.c.res.headers.append('X-RateLimit-Reset', reset.toString());
-
-    if (!success) {
-      console.log(`Rate limit exceeded for IP ${finalIp}.`);
-      throw new TRPCError({
-        code: 'TOO_MANY_REQUESTS',
-        message: 'Too many requests. Please try again later.',
-      });
-    }
-
-    return next();
-  });

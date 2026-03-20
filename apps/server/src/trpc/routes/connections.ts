@@ -1,21 +1,13 @@
-import { createRateLimiterMiddleware, privateProcedure, publicProcedure, router } from '../trpc';
+import { privateProcedure, publicProcedure, router } from '../trpc';
 import { getActiveConnection, getzeitmailDB } from '../../lib/server-utils';
 import { createDriver } from '../../lib/driver';
 import { encrypt } from '../../lib/encryption';
-import { Ratelimit } from '@upstash/ratelimit';
 import { TRPCError } from '@trpc/server';
 import { EProviders } from '../../types';
 import { z } from 'zod';
 
 export const connectionsRouter = router({
-  list: privateProcedure
-    .use(
-      createRateLimiterMiddleware({
-        limiter: Ratelimit.slidingWindow(120, '1m'),
-        generatePrefix: ({ sessionUser }) => `ratelimit:get-connections-${sessionUser?.id}`,
-      }),
-    )
-    .query(async ({ ctx }) => {
+  list: privateProcedure.query(async ({ ctx }) => {
       const { sessionUser } = ctx;
       const db = await getzeitmailDB(sessionUser.id);
       const connections = await db.findManyConnections();
