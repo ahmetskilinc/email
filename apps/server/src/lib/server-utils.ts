@@ -178,7 +178,7 @@ export function resolveAccessToken(conn: {
 // connectionToDriver
 // ---------------------------------------------------------------------------
 
-const connectionToDriver = (activeConnection: typeof connection.$inferSelect) => {
+export const connectionToDriver = (activeConnection: typeof connection.$inferSelect) => {
   const isAppPasswordProvider = APP_PASSWORD_PROVIDERS.includes(activeConnection.providerId);
   if (!activeConnection.accessToken || (!isAppPasswordProvider && !activeConnection.refreshToken)) {
     throw new Error(`Invalid connection ${JSON.stringify(activeConnection?.id)}`);

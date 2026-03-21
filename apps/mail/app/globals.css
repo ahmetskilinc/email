@@ -142,8 +142,12 @@
   }
   body {
     @apply bg-background text-foreground overscroll-none font-sans;
+    height: 100%;
+    overflow: auto;
   }
   html {
     @apply font-sans;
+    overflow: hidden;
+    height: 100%;
   }
 }

@@ -1,3 +1,4 @@
+import { resolveAccessToken, getzeitmailDB, connectionToDriver } from '../../lib/server-utils';
 import { IGetThreadResponseSchema, IGetThreadsResponseSchema } from '../../lib/driver/types';
 import { activeDriverProcedure, router, privateProcedure } from '../trpc';
 import { processEmailHtml } from '../../lib/email-processor';
@@ -5,7 +6,6 @@ import { defaultPageSize, FOLDERS } from '../../lib/utils';
 import { toAttachmentFiles } from '../../lib/attachments';
 import { serializedFileSchema } from '../../lib/schemas';
 import type { DeleteAllSpamResponse } from '../../types';
-import { resolveAccessToken } from '../../lib/server-utils';
 import { createDriver } from '../../lib/driver';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -50,11 +50,88 @@ export const mailRouter = router({
   }),
 
   get: activeDriverProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string(), connectionId: z.string().optional() }))
     .output(IGetThreadResponseSchema)
     .query(async ({ input, ctx }) => {
-      const driver = getDriver(ctx.activeConnection);
+      let conn = ctx.activeConnection;
+      if (input.connectionId && input.connectionId !== ctx.activeConnection.id) {
+        const db = await getzeitmailDB(ctx.sessionUser.id);
+        const specificConn = await db.findUserConnection(input.connectionId);
+        if (specificConn) conn = specificConn;
+      }
+      const driver = getDriver(conn);
       return driver.get(input.id);
+    }),
+
+  listAllInboxes: privateProcedure
+    .input(
+      z.object({
+        maxResults: z.number().optional().default(defaultPageSize),
+        cursor: z.string().optional().default(''),
+      }),
+    )
+    .output(
+      z.object({
+        threads: z.array(
+          z.object({
+            id: z.string(),
+            historyId: z.string().nullable(),
+            connectionId: z.string(),
+            $raw: z.unknown().optional(),
+          }),
+        ),
+        nextPageToken: z.string().nullable(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const db = await getzeitmailDB(ctx.sessionUser.id);
+      const connections = await db.findManyConnections();
+      const cursors: Record<string, string> = input.cursor ? JSON.parse(input.cursor) : {};
+
+      const results = await Promise.allSettled(
+        connections
+          .filter((c) => c.accessToken)
+          .map(async (conn) => {
+            const driver = connectionToDriver(conn);
+            const result = await driver.list({
+              folder: 'inbox',
+              maxResults: input.maxResults,
+              pageToken: cursors[conn.id] || undefined,
+            });
+            return { connectionId: conn.id, ...result };
+          }),
+      );
+
+      const allThreads = results
+        .filter(
+          (
+            r,
+          ): r is PromiseFulfilledResult<{
+            connectionId: string;
+            threads: { id: string; historyId: string | null; $raw?: unknown }[];
+            nextPageToken: string | null;
+          }> => r.status === 'fulfilled',
+        )
+        .flatMap((r) => r.value.threads.map((t) => ({ ...t, connectionId: r.value.connectionId })));
+
+      allThreads.sort((a, b) => {
+        const rawA = a.$raw as Record<string, unknown> | undefined;
+        const rawB = b.$raw as Record<string, unknown> | undefined;
+        const dateA = rawA?.receivedOn ? new Date(rawA.receivedOn as string).getTime() : 0;
+        const dateB = rawB?.receivedOn ? new Date(rawB.receivedOn as string).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      const nextCursors: Record<string, string> = {};
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.nextPageToken) {
+          nextCursors[r.value.connectionId] = r.value.nextPageToken;
+        }
+      }
+
+      const nextPageToken =
+        Object.keys(nextCursors).length > 0 ? JSON.stringify(nextCursors) : null;
+      return { threads: allThreads, nextPageToken };
     }),
 
   listThreads: activeDriverProcedure

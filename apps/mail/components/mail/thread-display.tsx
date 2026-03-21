@@ -45,12 +45,11 @@ export function ThreadDisplay() {
   }, []);
 
   return (
-    <div className={cn('flex h-[calc(100dvh-4rem)] flex-col rounded-xl')}>
+    <div className="flex h-[calc(100dvh-4rem)] flex-col">
       <div
         className={cn(
           'relative flex flex-col overflow-hidden duration-300',
           isMobile ? 'h-full' : 'h-full',
-          !isMobile && !isFullscreen && 'rounded-r-lg',
           isFullscreen ? 'fixed inset-0 z-50' : '',
         )}
       >

@@ -1,3 +1,5 @@
-export default function MailPage() {
-  return <div>All Inboxes</div>;
+import { MailLayout } from '@/components/mail/mail';
+
+export default function AllInboxesPage() {
+  return <MailLayout />;
 }
