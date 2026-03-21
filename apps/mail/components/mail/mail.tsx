@@ -37,19 +37,13 @@ export function MailLayout() {
   }, [session?.user, isPending, router]);
 
   return (
-    <div className="z-5 relative flex h-full p-0">
-      <div className="flex w-full flex-row">
-        <div className="w-full max-w-[420px] border-r">
-          <div className="h-full w-full">
-            <div className="z-1 relative h-full overflow-hidden pt-0">
-              <MailList />
-            </div>
-          </div>
-        </div>
+    <div className="relative z-5 flex h-full w-full flex-row p-0">
+      <div className="max-w-[400px] flex-1 border-r">
+        <MailList />
+      </div>
 
-        <div className="w-full flex-1">
-          <ThreadDisplay />
-        </div>
+      <div className="flex-1">
+        <ThreadDisplay />
       </div>
     </div>
   );

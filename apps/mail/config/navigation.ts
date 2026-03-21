@@ -1,20 +1,23 @@
 import {
   Archive,
   ArrowLeft,
-  Bell,
   Folder,
   Inbox,
+  LucideProps,
   Send,
   Settings,
   Trash2,
   User,
   Users,
 } from 'lucide-react';
+
 export interface NavItem {
   id?: string;
   title: string;
-  url: string;
-  icon: React.ComponentType;
+  href: string;
+  icon: React.ForwardRefExoticComponent<
+    Omit<LucideProps, 'ref'> & React.RefAttributes<SVGSVGElement>
+  >;
   badge?: number;
   isBackButton?: boolean;
   isSettingsButton?: boolean;
@@ -23,109 +26,90 @@ export interface NavItem {
   shortcut?: string;
 }
 
-interface NavSection {
-  title: string;
-  items: NavItem[];
-}
-
 interface NavConfig {
   path: string;
-  sections: NavSection[];
+  items: NavItem[];
 }
 
 export const navigationConfig: Record<string, NavConfig> = {
   mail: {
     path: '/mail',
-    sections: [
+    items: [
       {
-        title: 'Core',
-        items: [
-          {
-            id: 'inbox',
-            title: 'Inbox',
-            url: '/mail/inbox',
-            icon: Inbox,
-          },
-          {
-            id: 'drafts',
-            title: 'Drafts',
-            url: '/mail/draft',
-            icon: Folder,
-          },
-          {
-            id: 'sent',
-            title: 'Sent',
-            url: '/mail/sent',
-            icon: Send,
-          },
-        ],
+        id: 'all-inbox',
+        title: 'All Inboxes',
+        href: '/mail/all-inboxes',
+        icon: Inbox,
       },
       {
-        title: 'Management',
-        items: [
-          {
-            id: 'archive',
-            title: 'Archive',
-            url: '/mail/archive',
-            icon: Archive,
-          },
-          {
-            id: 'trash',
-            title: 'Bin',
-            url: '/mail/bin',
-            icon: Trash2,
-          },
-        ],
+        id: 'inbox',
+        title: 'Inbox',
+        href: '/mail/inbox',
+        icon: Inbox,
+      },
+      {
+        id: 'drafts',
+        title: 'Drafts',
+        href: '/mail/draft',
+        icon: Folder,
+      },
+      {
+        id: 'sent',
+        title: 'Sent',
+        href: '/mail/sent',
+        icon: Send,
+      },
+      {
+        id: 'archive',
+        title: 'Archive',
+        href: '/mail/archive',
+        icon: Archive,
+      },
+      {
+        id: 'trash',
+        title: 'Bin',
+        href: '/mail/bin',
+        icon: Trash2,
       },
     ],
   },
   settings: {
     path: '/settings',
-    sections: [
+    items: [
       {
-        title: 'Settings',
-        items: [
-          {
-            title: 'Back',
-            url: '/mail',
-            icon: ArrowLeft,
-            isBackButton: true,
-          },
-          {
-            title: 'General',
-            url: '/settings/general',
-            icon: User,
-          },
-          {
-            title: 'Connections',
-            url: '/settings/connections',
-            icon: Users,
-          },
-          // {
-          //   title: 'Notifications',
-          //   url: '/settings/notifications',
-          //   icon: Bell,
-          // },
-        ].map((item) => ({
-          ...item,
-          isSettingsPage: true,
-        })),
+        title: 'Back',
+        href: '/mail',
+        icon: ArrowLeft,
+        isBackButton: true,
       },
-    ],
+      {
+        title: 'General',
+        href: '/settings/general',
+        icon: User,
+      },
+      {
+        title: 'Connections',
+        href: '/settings/connections',
+        icon: Users,
+      },
+      // {
+      //   title: 'Notifications',
+      //   href: '/settings/notifications',
+      //   icon: Bell,
+      // },
+    ].map((item) => ({
+      ...item,
+      isSettingsPage: true,
+    })),
   },
 };
 
 export const bottomNavItems = [
   {
-    title: '',
-    items: [
-      {
-        id: 'settings',
-        title: 'Settings',
-        url: '/settings/general',
-        icon: Settings,
-        isSettingsButton: true,
-      },
-    ],
+    id: 'settings',
+    title: 'Settings',
+    href: '/settings/general',
+    icon: Settings,
+    isSettingsButton: true,
   },
 ];

@@ -42,13 +42,13 @@ export const BimiAvatar = ({ email, name, onImageError }: BimiAvatarProps) => {
   const firstLetter = getFirstLetterCharacter(name || email);
 
   return (
-    <Avatar className="rounded-none after:rounded-none">
+    <Avatar className="size-8">
       <AvatarImage
-        className={'rounded-none'}
         src={bimiData?.logo?.url}
         onError={handleFallbackImageError}
+        className="size-8"
       />
-      <AvatarFallback className="rounded-none after:rounded-none">{firstLetter}</AvatarFallback>
+      <AvatarFallback className="text-xs">{firstLetter}</AvatarFallback>
     </Avatar>
   );
 };

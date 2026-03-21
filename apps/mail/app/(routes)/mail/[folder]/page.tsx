@@ -1,47 +1,41 @@
-'use client'
+'use client';
 
-import { useParams, useRouter } from 'next/navigation'
-import { MailLayout } from '@/components/mail/mail'
-import { useLabels } from '@/hooks/use-labels'
-import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation';
+import { MailLayout } from '@/components/mail/mail';
+import { useLabels } from '@/hooks/use-labels';
+import { useEffect, useMemo } from 'react';
 
-const ALLOWED_FOLDERS = new Set(['inbox', 'draft', 'sent', 'spam', 'bin', 'archive', 'snoozed'])
+const ALLOWED_FOLDERS = new Set(['inbox', 'draft', 'sent', 'spam', 'bin', 'archive']);
+
+function checkLabelExists(labels: any[], id: string): boolean {
+  for (const label of labels) {
+    if (label.id === id) return true;
+    if (label.labels?.length > 0 && checkLabelExists(label.labels, id)) return true;
+  }
+  return false;
+}
 
 export default function MailPage() {
-  const params = useParams()
-  const folder = params.folder as string
-  const router = useRouter()
-  const [isLabelValid, setIsLabelValid] = useState<boolean | null>(true)
+  const params = useParams();
+  const folder = params.folder as string;
+  const router = useRouter();
 
-  const isStandardFolder = ALLOWED_FOLDERS.has(folder)
-  const { userLabels, isLoading: isLoadingLabels } = useLabels()
+  const isStandardFolder = ALLOWED_FOLDERS.has(folder);
+  const { userLabels, isLoading: isLoadingLabels } = useLabels();
+
+  const isLabelValid = useMemo(() => {
+    if (isStandardFolder) return true;
+    if (isLoadingLabels) return true;
+    if (!userLabels) return false;
+    return checkLabelExists(userLabels, folder);
+  }, [isStandardFolder, isLoadingLabels, userLabels, folder]);
 
   useEffect(() => {
-    if (isStandardFolder) {
-      setIsLabelValid(true)
-      return
+    if (!isLabelValid) {
+      const timer = setTimeout(() => router.push('/mail/inbox'), 2000);
+      return () => clearTimeout(timer);
     }
-    if (isLoadingLabels) return
-    if (userLabels) {
-      const checkLabelExists = (labels: any[]): boolean => {
-        for (const label of labels) {
-          if (label.id === folder) return true
-          if (label.labels && label.labels.length > 0) {
-            if (checkLabelExists(label.labels)) return true
-          }
-        }
-        return false
-      }
-      const labelExists = checkLabelExists(userLabels)
-      setIsLabelValid(labelExists)
-      if (!labelExists) {
-        const timer = setTimeout(() => { router.push('/mail/inbox') }, 2000)
-        return () => clearTimeout(timer)
-      }
-    } else {
-      setIsLabelValid(false)
-    }
-  }, [folder, userLabels, isLoadingLabels, isStandardFolder, router])
+  }, [isLabelValid, router]);
 
   if (!isLabelValid) {
     return (
@@ -51,8 +45,8 @@ export default function MailPage() {
           The folder you&apos;re looking for doesn&apos;t exist. Redirecting to inbox...
         </p>
       </div>
-    )
+    );
   }
 
-  return <MailLayout />
+  return <MailLayout />;
 }

@@ -1,8 +1,6 @@
 'use client';
 
-import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Attachment, ParsedMessage } from '@/types';
-import { Tooltip, TooltipTrigger } from '../ui/tooltip';
 import { useAnimations } from '@/hooks/use-animations';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useMemo, useState } from 'react';
@@ -15,14 +13,6 @@ import { Button } from '../ui/button';
 import { useQueryState } from 'nuqs';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface ThreadDisplayProps {
-  threadParam?: any;
-  onClose?: () => void;
-  isMobile?: boolean;
-  messages?: ParsedMessage[];
-  id?: string;
-}
 
 const isFullscreen = false;
 export function ThreadDisplay() {
@@ -55,12 +45,7 @@ export function ThreadDisplay() {
   }, []);
 
   return (
-    <div
-      className={cn(
-        'flex flex-col',
-        isFullscreen ? 'h-screen' : isMobile ? 'h-full' : 'h-dvh rounded-xl',
-      )}
-    >
+    <div className={cn('flex h-[calc(100dvh-4rem)] flex-col rounded-xl')}>
       <div
         className={cn(
           'relative flex flex-col overflow-hidden duration-300',
@@ -75,30 +60,24 @@ export function ThreadDisplay() {
           </div>
         ) : !emailData || isLoading ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <ScrollArea className="h-full flex-1" type="auto">
-              <div className="pb-4">
-                <MailDisplaySkeleton isFullscreen={isFullscreen} />
-              </div>
-            </ScrollArea>
+            <div className="pb-4">
+              <MailDisplaySkeleton isFullscreen={isFullscreen} />
+            </div>
           </div>
         ) : (
           <>
-            <div
+            {/* <div
               className={cn(
                 'flex shrink-0 items-center px-1 pb-[10px] md:px-3 md:pt-[12px] md:pb-[11px]',
                 isMobile && 'bg-panelLight dark:bg-panelDark sticky top-0 z-10 mt-2',
               )}
             >
               <div className="flex flex-1 items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="secondary" size="icon" onClick={handleClose}>
-                      <X className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
+                <Button variant="outline" size="icon" onClick={handleClose}>
+                  <X className="size-4" />
+                </Button>
               </div>
-            </div>
+            </div> */}
             <div className={cn('flex min-h-0 flex-1 flex-col', isMobile && 'h-full')}>
               {animationsEnabled ? (
                 <AnimatePresence mode="wait" initial={false}>

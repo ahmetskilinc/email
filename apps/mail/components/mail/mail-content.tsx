@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { defaultUserSettings } from '@zeitmail/server/schemas';
 import { useTRPC } from '@/providers/query-provider';
-import { getBrowserTimezone } from '@/lib/timezones';
 import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -28,39 +27,6 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
   const shadowRootRef = useRef<ShadowRoot | null>(null);
   const { resolvedTheme } = useTheme();
   const trpc = useTRPC();
-
-  const { mutateAsync: saveUserSettings } = useMutation({
-    ...trpc.settings.save.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-    },
-  });
-
-  const { mutateAsync: trustSender } = useMutation({
-    mutationFn: async () => {
-      const existingSettings = data?.settings ?? {
-        ...defaultUserSettings,
-        timezone: getBrowserTimezone(),
-      };
-
-      const { success } = await saveUserSettings({
-        ...existingSettings,
-        trustedSenders: data?.settings?.trustedSenders
-          ? data.settings.trustedSenders.concat(senderEmail)
-          : [senderEmail],
-      });
-
-      if (!success) {
-        throw new Error('Failed to trust sender');
-      }
-    },
-    onSuccess: () => {
-      refetch();
-    },
-    onError: () => {
-      toast.error('Failed to trust sender');
-    },
-  });
 
   const { mutateAsync: processEmailContent } = useMutation(
     trpc.mail.processEmailContent.mutationOptions(),
@@ -165,26 +131,9 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
           >
             {temporaryImagesEnabled ? 'Hide Images' : 'Show Images'}
           </button>
-          <button
-            onClick={async () => {
-              try {
-                await trustSender();
-              } catch (error) {
-                console.error('Error trusting sender:', error);
-              }
-            }}
-            className="ml-2 cursor-pointer underline"
-          >
-            {'Trust Sender'}
-          </button>
         </div>
       )}
-      <div
-        ref={hostRef}
-        className={cn(
-          'mail-content no-scrollbar w-full flex-1 overflow-scroll px-4 text-black dark:text-white',
-        )}
-      />
+      <div ref={hostRef} className="bg-background w-full flex-1 overflow-scroll px-4" />
     </>
   );
 }

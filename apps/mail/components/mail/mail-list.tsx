@@ -11,7 +11,6 @@ import { useThread, useThreads } from '@/hooks/use-threads';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
 import { useTRPC } from '@/providers/query-provider';
 import { useSettings } from '@/hooks/use-settings';
-import { PencilLine, Users } from 'lucide-react';
 import { VList, type VListHandle } from 'virtua';
 import { BimiAvatar } from '../ui/bimi-avatar';
 import { useDraft } from '@/hooks/use-drafts';
@@ -19,6 +18,7 @@ import type { ParsedMessage } from '@/types';
 import { useParams } from 'next/navigation';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar } from '../ui/avatar';
+import { Users } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { useAtom } from 'jotai';
 
@@ -114,33 +114,13 @@ function MailListRow({
                       'text-md flex items-baseline gap-1 group-hover:opacity-100',
                     )}
                   >
-                    <div className="flex items-center gap-1">
-                      <span className="line-clamp-1 overflow-hidden text-sm">{title}</span>
-                      {unread && !isSelected ? (
-                        <span className="ml-0.5 size-2 rounded-full bg-[#006FFE]" />
-                      ) : null}
-                    </div>
+                    <span className="line-clamp-1 max-w-[190px] overflow-hidden text-sm">
+                      {title}
+                    </span>
+                    {unread && !isSelected ? (
+                      <span className="ml-0.5 size-2 rounded-full bg-[#006FFE]" />
+                    ) : null}
                   </span>
-                  {replyCount && replyCount > 1 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="rounded-md text-xs opacity-70">[{replyCount}]</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {replyCount === 1 ? '1 reply' : `${replyCount} replies`}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {hasDraftBadge ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center">
-                          <PencilLine className="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Draft</TooltipContent>
-                    </Tooltip>
-                  ) : null}
                 </div>
                 {date ? (
                   <p

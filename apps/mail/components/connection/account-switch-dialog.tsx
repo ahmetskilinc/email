@@ -15,6 +15,7 @@ import { activeConnectionIdAtom } from '@/store/connection';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTRPC } from '@/providers/query-provider';
 import { Spinner } from '@/components/ui/spinner';
+import { emailProviders } from '@/lib/constants';
 import { useQueryState } from 'nuqs';
 import { useSetAtom } from 'jotai';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ export interface SwitchTarget {
   id: string;
   name: string | null;
   email: string;
+  providerId: string;
   picture: string | null;
 }
 
@@ -131,6 +133,8 @@ export function AccountSwitchDialog({
       });
   }, [target]);
 
+  const Icon = emailProviders.find((p) => p.providerId === target?.providerId)?.icon;
+
   const isOpen = target !== null;
   const isDone = logs.length > 0 && logs[logs.length - 1]?.message === 'Switch complete';
 
@@ -143,7 +147,7 @@ export function AccountSwitchDialog({
         }
       }}
     >
-      <DialogContent showCloseButton={!!error} onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent showCloseButton={!!error}>
         <DialogHeader>
           <DialogTitle>Switching Account</DialogTitle>
           <DialogDescription>
@@ -154,22 +158,24 @@ export function AccountSwitchDialog({
         </DialogHeader>
 
         {target && (
-          <div className="flex items-center gap-3 rounded-none border p-3">
-            <Avatar className="size-9 rounded-none after:rounded-none">
-              <AvatarImage
-                className="rounded-none"
-                src={target.picture || undefined}
-                alt={target.name || target.email}
-              />
-              <AvatarFallback className="rounded-none text-xs">
-                {(target.name || target.email)
-                  .split(' ')
-                  .map((n) => n[0])
-                  .join('')
-                  .toUpperCase()
-                  .slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-center gap-3 rounded border p-3">
+            {target && target.picture ? (
+              <Avatar className="size-9">
+                <AvatarImage src={target.picture} alt={target.name || target.email} />
+                <AvatarFallback className="text-[10px]">
+                  {(target.name || target.email)
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div className="bg-sidebar-accent flex size-9 items-center justify-center rounded-full border">
+                {Icon && <Icon className="size-4" />}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{target.name || target.email}</p>
               {target.name && (
@@ -205,7 +211,7 @@ export function AccountSwitchDialog({
           </div>
         )}
 
-        <ScrollArea className="h-[140px] w-full rounded-none border">
+        <ScrollArea className="h-[140px] w-full rounded border">
           <div ref={scrollRef} className="p-3 font-mono text-[11px]">
             {logs.map((log, i) => (
               <div
@@ -229,7 +235,7 @@ export function AccountSwitchDialog({
                 >
                   {log.status === 'pending' ? '○' : log.status === 'done' ? '●' : '✕'}
                 </span>
-                <span className="wrap-break-word min-w-0">{log.message}</span>
+                <span className="min-w-0 wrap-break-word">{log.message}</span>
               </div>
             ))}
             {logs.length === 0 && (

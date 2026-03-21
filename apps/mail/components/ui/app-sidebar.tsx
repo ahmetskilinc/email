@@ -1,107 +1,66 @@
 'use client';
+
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
-import { bottomNavItems, navigationConfig } from '@/config/navigation';
-import { EmailComposer } from '../create/email-composer';
-import { Button } from '@/components/ui/button';
-import { useSession } from '@/lib/auth-client';
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenu,
+} from '@/components/ui/sidebar';
+import { navigationConfig } from '@/config/navigation';
 import { usePathname } from 'next/navigation';
-import { PencilLine } from 'lucide-react';
-import React, { useMemo } from 'react';
+import { MailPlus } from 'lucide-react';
 import { NavUser } from './nav-user';
 import { NavMain } from './nav-main';
-import { useQueryState } from 'nuqs';
+import { useMemo } from 'react';
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const { currentSection, navItems } = useMemo(() => {
+  const { navItems } = useMemo(() => {
     const section = Object.entries(navigationConfig).find(([, config]) =>
       pathname.startsWith(config.path),
     );
 
-    const currentSection = section?.[0] || 'mail';
-    if (navigationConfig[currentSection]) {
-      const items = [...navigationConfig[currentSection].sections];
-
-      return { currentSection, navItems: items };
-    } else {
-      return {
-        currentSection: '',
-        navItems: [],
-      };
-    }
+    const currentSection = section?.[0] ?? 'mail';
+    return { navItems: navigationConfig[currentSection].items };
   }, [pathname]);
 
-  const showComposeButton = currentSection === 'mail';
-
   return (
-    <Sidebar collapsible="none" {...props} className="border-r">
+    <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
-        {session && <NavUser />}
-
-        {/* {showComposeButton && <ComposeButton />} */}
+        <SidebarMenu className="space-y-3">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
+              render={
+                <a>
+                  <span className="text-base font-semibold">BruvMail Inc.</span>
+                </a>
+              }
+            />
+          </SidebarMenuItem>
+          <SidebarMenuItem className="flex items-center gap-2">
+            <SidebarMenuButton tooltip="Compose">
+              <MailPlus />
+              <span>Compose</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="p-2">
-        <NavMain items={navItems} />
+      <SidebarContent>
+        <NavMain
+          items={navItems.map((item) => ({
+            title: item.title,
+            url: item.href,
+            icon: item.icon,
+          }))}
+        />
       </SidebarContent>
-
       <SidebarFooter>
-        <NavMain items={bottomNavItems} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
-  );
-}
-
-function ComposeButton() {
-  const [dialogOpen, setDialogOpen] = useQueryState('isComposeOpen');
-  const [, setDraftId] = useQueryState('draftId');
-  const [, setTo] = useQueryState('to');
-  const [, setActiveReplyId] = useQueryState('activeReplyId');
-  const [, setMode] = useQueryState('mode');
-
-  const handleOpenChange = async (open: boolean) => {
-    if (!open) {
-      setDialogOpen(null);
-    } else {
-      setDialogOpen('true');
-    }
-    setDraftId(null);
-    setTo(null);
-    setActiveReplyId(null);
-    setMode(null);
-  };
-  return (
-    <Dialog open={!!dialogOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="default">
-          <PencilLine className="size-3 text-white" />
-          New Email
-        </Button>
-      </DialogTrigger>
-
-      <DialogContent className="h-screen w-screen max-w-none border-none bg-[#FAFAFA] p-0 shadow-none dark:bg-[#141414]">
-        <DialogTitle className="sr-only">New Email</DialogTitle>
-        <DialogDescription className="sr-only">New Email</DialogDescription>
-        <EmailComposer
-          onSendEmail={async (data) => {
-            console.log(data);
-          }}
-          onClose={() => {
-            setDialogOpen(null);
-          }}
-          className={undefined}
-          autofocus={false}
-          settingsLoading={false}
-          editorClassName={undefined}
-        />
-      </DialogContent>
-    </Dialog>
   );
 }

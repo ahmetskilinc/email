@@ -526,7 +526,7 @@ export function EmailComposer({
           <div className="flex items-center gap-2 border-b p-3">
             <p className="text-sm font-medium text-[#8C8C8C]">Subject:</p>
             <input
-              className="h-4 w-full bg-transparent text-sm font-normal leading-normal text-black placeholder:text-[#797979] focus:outline-none dark:text-white/90"
+              className="h-4 w-full bg-transparent text-sm leading-normal font-normal text-black placeholder:text-[#797979] focus:outline-none dark:text-white/90"
               placeholder="Re: Design review feedback"
               value={subjectInput}
               onChange={(e) => {
@@ -548,7 +548,7 @@ export function EmailComposer({
                 setHasUnsavedChanges(true);
               }}
             >
-              <SelectTrigger className="h-6 flex-1 border-0 bg-transparent p-0 text-sm font-normal text-black placeholder:text-[#797979] focus:outline-none focus:ring-0 dark:text-white/90">
+              <SelectTrigger className="h-6 flex-1 border-0 bg-transparent p-0 text-sm font-normal text-black placeholder:text-[#797979] focus:ring-0 focus:outline-none dark:text-white/90">
                 <SelectValue placeholder="Select an email address" />
               </SelectTrigger>
               <SelectContent>
@@ -605,15 +605,19 @@ export function EmailComposer({
             />
             {attachments && attachments.length > 0 && (
               <Popover modal={true}>
-                <PopoverTrigger asChild>
-                  <button
-                    className="focus-visible:ring-ring flex cursor-pointer items-center gap-1.5 rounded-md border border-[#E7E7E7] bg-white/5 px-2 py-1 text-sm hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-[#2B2B2B]"
-                    aria-label={`View ${attachments.length} attached ${pluralize('file', attachments.length)}`}
-                  >
-                    <Paperclip className="h-3.5 w-3.5 text-[#9A9A9A]" />
-                    <span className="font-medium">{attachments.length}</span>
-                  </button>
-                </PopoverTrigger>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`View ${attachments.length} attached ${pluralize('file', attachments.length)}`}
+                    >
+                      <Paperclip className="h-3.5 w-3.5 text-[#9A9A9A]" />
+                      {attachments.length}
+                    </Button>
+                  }
+                />
+
                 <PopoverContent
                   className="w-[340px] rounded-lg p-0 shadow-lg dark:bg-[#202020]"
                   align="start"
@@ -697,7 +701,7 @@ export function EmailComposer({
                                   toast.error('Failed to remove attachment');
                                 }
                               }}
-                              className="focus-visible:ring-ring ml-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2"
+                              className="focus-visible:ring-ring ml-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent hover:bg-black/5 focus-visible:ring-2 focus-visible:outline-none"
                               aria-label={`Remove ${file.name}`}
                             >
                               <X className="text-muted-foreground h-3.5 w-3.5 hover:text-black dark:text-[#9B9B9B] dark:hover:text-white" />

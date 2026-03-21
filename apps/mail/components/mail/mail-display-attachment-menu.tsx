@@ -1,6 +1,5 @@
 'use client';
 
-import { Ellipsis, HardDriveDownload } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +7,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { createDownloadAllZipHandler } from '@/lib/mail/attachment-helpers';
+import { Ellipsis, HardDriveDownload } from 'lucide-react';
 import type { Attachment } from '@/types';
+import { Button } from '../ui/button';
 
 type Props = {
   subject: string;
@@ -20,18 +21,20 @@ export function MailDisplayAttachmentMenu({ subject, messageAttachments }: Props
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center gap-1 overflow-hidden rounded-md bg-white transition-colors hover:bg-gray-100 focus:ring-0 focus:outline-none dark:bg-[#313131] dark:hover:bg-[#3d3d3d]"
-        >
-          <Ellipsis className="text-iconLight dark:text-iconDark" />
-        </button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
+            <Ellipsis className="text-iconLight dark:text-iconDark" />
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end">
         <DropdownMenuItem
           onClick={(e) => {

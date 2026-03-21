@@ -1,5 +1,4 @@
 import { differenceInCalendarMonths, format, isThisMonth, isToday } from 'date-fns';
-import { getBrowserTimezone } from './timezones';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Sender } from '@/types';

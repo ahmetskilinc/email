@@ -108,7 +108,7 @@ export default function ConnectionsPage() {
               return (
                 <div
                   key={connection.id}
-                  className="hover:bg-black/2 dark:hover:bg-white/2 flex items-center gap-4 rounded-xl border p-4 transition-colors"
+                  className="flex items-center gap-4 rounded-xl border p-4 transition-colors hover:bg-black/2 dark:hover:bg-white/2"
                 >
                   {connection.picture ? (
                     <img
@@ -154,16 +154,18 @@ export default function ConnectionsPage() {
                       </Button>
                     )}
                     <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive h-8 w-8"
-                          disabled={isOnly}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
+                      <DialogTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive h-8 w-8"
+                            disabled={isOnly}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Disconnect Email Account</DialogTitle>
@@ -174,17 +176,17 @@ export default function ConnectionsPage() {
                           </DialogDescription>
                         </DialogHeader>
                         <div className="flex justify-end gap-3">
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <DialogClose asChild>
-                            <Button
-                              variant="destructive"
-                              onClick={() => disconnectAccount(connection.id)}
-                            >
-                              Disconnect
-                            </Button>
-                          </DialogClose>
+                          <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                          <DialogClose
+                            render={
+                              <Button
+                                variant="destructive"
+                                onClick={() => disconnectAccount(connection.id)}
+                              >
+                                Disconnect
+                              </Button>
+                            }
+                          />
                         </div>
                       </DialogContent>
                     </Dialog>
@@ -194,7 +196,7 @@ export default function ConnectionsPage() {
             })}
           </div>
           <AddConnectionDialog>
-            <Button variant="outline" size="sm">
+            <Button size="sm">
               <Plus className="size-4" />
               Add Account
             </Button>

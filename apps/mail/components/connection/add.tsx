@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import {
   Dialog,
   DialogContent,
@@ -8,18 +8,18 @@ import {
   DialogTrigger,
 } from '../ui/dialog';
 import { authClient, useSession } from '@/lib/auth-client';
+import { JSXElementConstructor, useState } from 'react';
 import { emailProviders } from '@/lib/constants';
+import { usePathname } from 'next/navigation';
 import { ICloudForm } from './icloud-form';
 import { YahooForm } from './yahoo-form';
-import { usePathname } from 'next/navigation';
 import { Button } from '../ui/button';
-import { useState } from 'react';
 
 export const AddConnectionDialog = ({
   children,
   onOpenChange,
 }: {
-  children?: React.ReactNode;
+  children: React.ReactElement<unknown, string | JSXElementConstructor<any>>;
   className?: string;
   onOpenChange?: (open: boolean) => void;
 }) => {
@@ -47,7 +47,7 @@ export const AddConnectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger render={children} />
       <DialogContent>
         {appPasswordProvider === 'icloud' ? (
           <ICloudForm

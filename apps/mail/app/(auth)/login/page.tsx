@@ -1,11 +1,11 @@
 'use client';
 
 import { Apple, Google, Microsoft } from '@/components/icons/icons';
-import { signIn } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { signIn } from '@/lib/auth-client';
 import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -71,7 +71,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#111111] px-4">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-white">Welcome back</h1>

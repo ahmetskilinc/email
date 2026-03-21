@@ -16,7 +16,14 @@ export function ClientProviders({ children }: PropsWithChildren) {
         <QueryProvider>
           <TooltipProvider>
             <ThemeProvider attribute="class" enableSystem disableTransitionOnChange>
-              <SidebarProvider>
+              <SidebarProvider
+                style={
+                  {
+                    '--sidebar-width': 'calc(var(--spacing) * 72)',
+                    '--header-height': 'calc(var(--spacing) * 12)',
+                  } as React.CSSProperties
+                }
+              >
                 {children}
                 <Toaster />
               </SidebarProvider>
