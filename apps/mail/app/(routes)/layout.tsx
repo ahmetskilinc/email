@@ -1,16 +1,16 @@
 import { ConnectionSyncer } from '@/components/connection/connection-syncer';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/ui/site-header';
 import { AppSidebar } from '@/components/ui/app-sidebar';
+import { SidebarInset } from '@/components/ui/sidebar';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AppSidebar />
-      <SidebarInset className="h-[calc(100vh-16px)]">
+      <SidebarInset className="h-svh md:h-[calc(100vh-1rem)]">
         <SiteHeader />
         <ConnectionSyncer />
-        <div className="relative flex max-h-screen w-full overflow-hidden">{children}</div>
+        <div className="relative flex h-full w-full flex-1 overflow-hidden">{children}</div>
       </SidebarInset>
     </>
   );

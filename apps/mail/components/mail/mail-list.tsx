@@ -1,16 +1,14 @@
 'use client';
 
 import { useOptimisticThreadState } from '@/components/mail/optimistic-thread-state';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFetching, type UseQueryResult } from '@tanstack/react-query';
 import type { ParsedDraft } from '../../../server/src/lib/driver/types';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { focusedIndexAtom } from '@/hooks/use-mail-navigation';
 import { cleanNameDisplay } from '@/lib/mail/display-format';
 import { useThread, useThreads } from '@/hooks/use-threads';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
 import { useTRPC } from '@/providers/query-provider';
-import { useSettings } from '@/hooks/use-settings';
 import { VList, type VListHandle } from 'virtua';
 import { BimiAvatar } from '../ui/bimi-avatar';
 import { useDraft } from '@/hooks/use-drafts';
@@ -34,12 +32,9 @@ interface MailListRowProps {
   date?: string;
   unread?: boolean;
   isSelected?: boolean;
-  isKeyboardFocused?: boolean;
   isGroup?: boolean;
   avatarEmail?: string;
   avatarName?: string;
-  replyCount?: number;
-  hasDraftBadge?: boolean;
   loading?: boolean;
   onClick?: () => void;
 }
@@ -50,12 +45,9 @@ function MailListRow({
   date,
   unread,
   isSelected,
-  isKeyboardFocused,
   isGroup,
   avatarEmail,
   avatarName,
-  replyCount,
-  hasDraftBadge,
   loading,
   onClick,
 }: MailListRowProps) {
@@ -82,8 +74,7 @@ function MailListRow({
       <div
         className={cn(
           'hover:bg-offsetLight dark:hover:bg-primary/5 group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm hover:opacity-100',
-          (isSelected || isKeyboardFocused) && 'border-border bg-primary/5 opacity-100',
-          isKeyboardFocused && 'ring-primary/50',
+          isSelected && 'border-border bg-primary/5 opacity-100',
         )}
       >
         <div
@@ -146,14 +137,14 @@ function MailListRow({
   );
 }
 
-interface MailListItemWrapperProps {
-  message: { id: string };
-  onClick?: (message: ParsedMessage) => () => void;
-  isKeyboardFocused?: boolean;
-}
-
 const ThreadItem = memo(
-  ({ message, onClick, isKeyboardFocused }: MailListItemWrapperProps) => {
+  ({
+    message,
+    onClick,
+  }: {
+    message: { id: string };
+    onClick?: (message: ParsedMessage) => () => void;
+  }) => {
     const { folder } = useParams<{ folder: string }>();
     const [threadId] = useQueryState('threadId');
     const isFolderSent = folder === FOLDERS.SENT;
@@ -164,15 +155,12 @@ const ThreadItem = memo(
           subject: string;
           receivedOn: string;
           unread: boolean;
-          totalReplies: number;
         }
       | undefined;
 
-    const {
-      data: getThreadData,
-      isGroupThread,
-      latestDraft,
-    } = useThread(message.id, { enabled: !rawPreview });
+    const { data: getThreadData, isGroupThread } = useThread(message.id, {
+      enabled: !rawPreview,
+    });
 
     const latestMessage = getThreadData?.latest;
     const idToUse = latestMessage?.threadId ?? latestMessage?.id ?? message.id;
@@ -200,7 +188,6 @@ const ThreadItem = memo(
 
     if (!effectiveLatestMessage || optimisticState.shouldHide || !idToUse) return null;
 
-    const totalReplies = getThreadData?.totalReplies ?? rawPreview?.totalReplies ?? 0;
     const isSelected = !!threadId && idToUse === threadId;
 
     const cleanName = effectiveLatestMessage.sender?.name
@@ -225,23 +212,17 @@ const ThreadItem = memo(
         date={dateStr}
         unread={displayUnread}
         isSelected={isSelected}
-        isKeyboardFocused={isKeyboardFocused}
         isGroup={isGroupThread}
         avatarEmail={effectiveLatestMessage.sender?.email}
         avatarName={cleanName || effectiveLatestMessage.sender?.email}
-        replyCount={totalReplies}
-        hasDraftBadge={!!latestDraft}
         onClick={onClick ? onClick(effectiveLatestMessage) : undefined}
       />
     );
   },
-  (prev, next) =>
-    prev.message.id === next.message.id &&
-    prev.isKeyboardFocused === next.isKeyboardFocused &&
-    Object.is(prev.onClick, next.onClick),
+  (prev, next) => prev.message.id === next.message.id && Object.is(prev.onClick, next.onClick),
 );
 
-const DraftItem = memo(({ message }: MailListItemWrapperProps) => {
+const DraftItem = memo(({ message }: { message: { id: string } }) => {
   const draftQuery = useDraft(message.id) as UseQueryResult<ParsedDraft>;
   const draft = draftQuery.data;
   const [, setComposeOpen] = useQueryState('isComposeOpen');
@@ -275,21 +256,14 @@ const DraftItem = memo(({ message }: MailListItemWrapperProps) => {
 
 export function MailList() {
   const { folder } = useParams<{ folder: string }>();
-  const { data: settingsData } = useSettings();
   const [, setThreadId] = useQueryState('threadId');
   const [, setDraftId] = useQueryState('draftId');
-  const [isMounted, setIsMounted] = useState(false);
+  const isDraft = folder === FOLDERS.DRAFT;
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const [{ refetch, isLoading, isFetching, isFetchingNextPage, hasNextPage }, items, , loadMore] =
-    useThreads();
+  const [{ refetch, isLoading, isFetchingNextPage, hasNextPage }, items, , loadMore] = useThreads();
   const trpc = useTRPC();
   const isFetchingMail = useIsFetching({ queryKey: trpc.mail.get.queryKey() }) > 0;
   const itemsRef = useRef(items);
-  const parentRef = useRef<HTMLDivElement>(null);
   const vListRef = useRef<VListHandle>(null);
 
   useEffect(() => {
@@ -297,43 +271,32 @@ export function MailList() {
   }, [items]);
 
   useEffect(() => {
-    const handleRefresh = () => {
-      void refetch();
-    };
-
+    const handleRefresh = () => void refetch();
     window.addEventListener('refreshMailList', handleRefresh);
     return () => window.removeEventListener('refreshMailList', handleRefresh);
   }, [refetch]);
-
-  const handleNavigateToThread = useCallback(
-    (threadId: string | null) => {
-      setThreadId(threadId);
-      return;
-    },
-    [setThreadId],
-  );
 
   const [, setFocusedIndex] = useAtom(focusedIndexAtom);
 
   const handleMailClick = useCallback(
     (message: ParsedMessage) => async () => {
-      const autoRead = settingsData?.settings?.autoRead ?? true;
-
       const messageThreadId = message.threadId ?? message.id;
       const clickedIndex = itemsRef.current.findIndex((item) => item.id === messageThreadId);
       setFocusedIndex(clickedIndex);
       setThreadId(messageThreadId);
       setDraftId(null);
     },
-    [setFocusedIndex, setThreadId, setDraftId, settingsData],
+    [setFocusedIndex, setThreadId, setDraftId],
   );
 
-  const Comp = useMemo(() => (folder === FOLDERS.DRAFT ? DraftItem : ThreadItem), [folder]);
-
-  const vListRenderer = useCallback(
-    (item: MailListItemWrapperProps['message'], index: number) => (
+  const renderItem = useCallback(
+    (item: { id: string }, index: number) => (
       <>
-        <Comp key={item.id} message={item} onClick={handleMailClick} />
+        {isDraft ? (
+          <DraftItem key={item.id} message={item} />
+        ) : (
+          <ThreadItem key={item.id} message={item} onClick={handleMailClick} />
+        )}
         {index === items.length - 1 && (isFetchingNextPage || isFetchingMail) ? (
           <div className="flex w-full justify-center py-4">
             <MailListInlineSpinner />
@@ -341,7 +304,7 @@ export function MailList() {
         ) : null}
       </>
     ),
-    [Comp, items.length, isFetchingMail, isFetchingNextPage, handleMailClick],
+    [isDraft, items.length, isFetchingMail, isFetchingNextPage, handleMailClick],
   );
 
   const handleVListScroll = useCallback(
@@ -363,42 +326,27 @@ export function MailList() {
   );
 
   return (
-    <>
-      <div ref={parentRef} className="hide-link-indicator flex h-full w-full">
-        {!isMounted || isLoading ? (
-          <div className="flex h-32 w-full items-center justify-center">
-            <MailListInlineSpinner />
-          </div>
-        ) : !items || items.length === 0 ? (
-          <div className="flex h-full w-full items-center justify-center">
-            <p className="text-lg">It&apos;s empty here</p>
-          </div>
-        ) : (
-          <div className="flex flex-1 flex-col" id="mail-list-scroll">
-            <VList
-              ref={vListRef}
-              data={items}
-              bufferSize={500}
-              itemSize={100}
-              className="flex-1 overflow-x-hidden"
-              onScroll={handleVListScroll}
-            >
-              {vListRenderer}
-            </VList>
-          </div>
-        )}
-      </div>
-      <div className="w-full pt-2 text-center">
-        {isFetching ? (
-          <div className="text-center">
-            <div className="mx-auto">
-              <MailListInlineSpinner />
-            </div>
-          </div>
-        ) : (
-          <div className="h-2" />
-        )}
-      </div>
-    </>
+    <div className="flex h-full w-full flex-1 flex-col md:max-w-[400px] md:border-r">
+      {isLoading ? (
+        <div className="flex w-full flex-1 items-center justify-center">
+          <MailListInlineSpinner />
+        </div>
+      ) : !items?.length ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <p className="text-lg">It&apos;s empty here</p>
+        </div>
+      ) : (
+        <VList
+          ref={vListRef}
+          data={items}
+          bufferSize={500}
+          itemSize={100}
+          className="flex-1 overflow-x-hidden"
+          onScroll={handleVListScroll}
+        >
+          {renderItem}
+        </VList>
+      )}
+    </div>
   );
 }

@@ -9,27 +9,57 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  MoreVertical,
+  LogOut,
+  UserCircle,
+  PlusCircle,
+  UserPlus,
+  Sun,
+  Moon,
+  Monitor,
+} from 'lucide-react';
+import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { AccountSwitchDialog, type SwitchTarget } from '../connection/account-switch-dialog';
-import { MoreVertical, LogOut, UserCircle, PlusCircle, UserPlus } from 'lucide-react';
 import { useActiveConnection, useConnections } from '@/hooks/use-connections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { emailProviders } from '@/lib/constants';
+import { Button } from '@base-ui/react/button';
 import { useSession } from '@/lib/auth-client';
 import { signOut } from '@/lib/auth-client';
 import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+
+const themeOptions = [
+  {
+    label: 'Light',
+    value: 'light',
+    Icon: Sun,
+  },
+  {
+    label: 'Dark',
+    value: 'dark',
+    Icon: Moon,
+  },
+  {
+    label: 'System',
+    value: 'system',
+    Icon: Monitor,
+  },
+] as const;
 
 export function NavUser() {
   const [switchTarget, setSwitchTarget] = useState<SwitchTarget | null>(null);
   const { isMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
+  const activeTheme = theme ?? 'system';
   const { data: sesionData } = useSession();
   const { data: activeConnection } = useActiveConnection();
   const { data: connectionsData } = useConnections();
@@ -58,10 +88,6 @@ export function NavUser() {
         window.location.href = '/login';
       },
     });
-  };
-
-  const handleThemeToggle = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   const otherConnections = connections?.filter((c) => c.id !== activeConnection?.id);
@@ -226,14 +252,33 @@ export function NavUser() {
                     </Link>
                   }
                 />
-                {/* <DropdownMenuItem>
-                  <CreditCard />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Bell />
-                  Notifications
-                </DropdownMenuItem> */}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <div className="flex items-center justify-between rounded-[6px] pl-2">
+                  <span className="text-[13px] leading-[18px] font-medium">Appearance</span>
+                  <div className="border-border flex items-center rounded-[4px] border">
+                    {themeOptions.map((option, i) => (
+                      <Button
+                        aria-label={option.label}
+                        aria-pressed={activeTheme === option.value}
+                        className={cn(
+                          'hover:bg-accent hover:text-accent-foreground text-accent-foreground flex items-center justify-center p-1.5 transition-colors',
+                          i === 0 && 'rounded-l-[3px]',
+                          i === themeOptions.length - 1 && 'rounded-r-[3px]',
+                          activeTheme === option.value && 'bg-accent text-accent-foreground',
+                        )}
+                        key={option.value}
+                        onClick={() => {
+                          setTheme(option.value);
+                        }}
+                        type="button"
+                      >
+                        <option.Icon className="size-3.5" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>

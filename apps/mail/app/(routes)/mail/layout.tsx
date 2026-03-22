@@ -26,5 +26,5 @@ export default function MailLayout({ children }: { children: React.ReactNode }) 
   if (sessionPending || connectionsPending) return null;
   if (!session?.user || !connectionsData?.connections?.length) return null;
 
-  return <div className="w-full">{children}</div>;
+  return children;
 }

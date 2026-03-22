@@ -13,8 +13,8 @@ import { useAttachments } from '@/hooks/use-attachments';
 import type { Attachment, ParsedMessage } from '@/types';
 import { MailContent } from './mail-content';
 import { useParams } from 'next/navigation';
-import { memo, useEffect } from 'react';
 import { useQueryState } from 'nuqs';
+import { useEffect } from 'react';
 
 type Props = {
   emailData: ParsedMessage;
@@ -24,7 +24,13 @@ type Props = {
   threadAttachments?: Attachment[];
 };
 
-const MailDisplay = ({ emailData, index, totalEmails, demo, threadAttachments }: Props) => {
+export default function MailDisplay({
+  emailData,
+  index,
+  totalEmails,
+  demo,
+  threadAttachments,
+}: Props) {
   const { data: messageAttachments } = useAttachments(emailData.id);
   const { folder } = useParams<{ folder: string }>();
 
@@ -41,7 +47,7 @@ const MailDisplay = ({ emailData, index, totalEmails, demo, threadAttachments }:
   }, [demo, emailData.id, totalEmails, index]);
 
   return (
-    <div className="relative flex-1 overflow-hidden" id={`mail-${emailData.id}`}>
+    <div className="relative flex-1">
       <div className="relative h-full overflow-y-auto">
         {index === 0 && threadAttachments && threadAttachments.length > 0 && (
           <div className={cn('px-4 py-4', index === 0 && 'border-b')}>
@@ -71,10 +77,12 @@ const MailDisplay = ({ emailData, index, totalEmails, demo, threadAttachments }:
               )}
             </div>
           </div>
-          <MailDisplayAttachmentMenu
-            subject={emailData.subject || 'email'}
-            messageAttachments={messageAttachments || []}
-          />
+          {messageAttachments && messageAttachments.length > 0 && (
+            <MailDisplayAttachmentMenu
+              subject={emailData.subject || 'email'}
+              messageAttachments={messageAttachments}
+            />
+          )}
         </div>
 
         <div className={cn('grid grid-rows-[1fr] overflow-hidden')}>
@@ -86,8 +94,12 @@ const MailDisplay = ({ emailData, index, totalEmails, demo, threadAttachments }:
                   html={emailData?.decodedBody}
                   senderEmail={emailData.sender.email}
                 />
-              ) : null}
-              <MailDisplayMessageAttachments attachments={messageAttachments || []} />
+              ) : (
+                <p className="text-sm text-gray-500">No body found</p>
+              )}
+              {messageAttachments && messageAttachments.length > 0 && (
+                <MailDisplayMessageAttachments attachments={messageAttachments} />
+              )}
               <MailDisplayActionBar
                 onReply={() => {
                   void setMode('reply');
@@ -108,6 +120,4 @@ const MailDisplay = ({ emailData, index, totalEmails, demo, threadAttachments }:
       </div>
     </div>
   );
-};
-
-export default memo(MailDisplay);
+}
