@@ -40,7 +40,7 @@ export function MailLayout() {
 
       {isMobile ? (
         <Sheet open={!!threadId} onOpenChange={handleSheetOpenChange}>
-          <SheetContent side="bottom" draggable className="h-[95dvh]! rounded-t-xl">
+          <SheetContent side="bottom" draggable className="bg-background h-[95dvh]! rounded-t-xl">
             <ThreadDisplay />
           </SheetContent>
         </Sheet>

@@ -1,5 +1,5 @@
 'use client'
-import { backgroundQueueAtom, isThreadInBackgroundQueueAtom } from '@/store/backgroundQueue';
+import { isThreadInBackgroundQueueAtom } from '@/store/backgroundQueue';
 import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import type { IGetThreadResponse } from '../../server/src/lib/driver/types';
 import { threadConnectionAtom } from '@/store/threadConnection';
@@ -8,7 +8,7 @@ import { useSearchValue } from '@/hooks/use-search-value';
 import { useTRPC } from '@/providers/query-provider';
 import useSearchLabels from './use-labels-search';
 import { useSession } from '@/lib/auth-client';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { useSettings } from './use-settings';
 import { useParams, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -20,7 +20,6 @@ export const useThreads = () => {
   const pathname = usePathname();
   const isAllInboxes = pathname === '/mail/all-inboxes';
   const [searchValue] = useSearchValue();
-  const [backgroundQueue] = useAtom(backgroundQueueAtom);
   const isInQueue = useAtomValue(isThreadInBackgroundQueueAtom);
   const trpc = useTRPC();
   const { labels } = useSearchLabels();
@@ -38,7 +37,7 @@ export const useThreads = () => {
         enabled: !isAllInboxes && !!activeConnection,
         initialCursor: '',
         getNextPageParam: (lastPage) => lastPage?.nextPageToken ?? null,
-        staleTime: 60 * 1000 * 1, // 1 minute
+        staleTime: 60 * 1000,
         refetchOnMount: true,
         refetchIntervalInBackground: true,
       },
@@ -52,14 +51,13 @@ export const useThreads = () => {
         enabled: isAllInboxes,
         initialCursor: '',
         getNextPageParam: (lastPage) => lastPage?.nextPageToken ?? null,
-        staleTime: 60 * 1000 * 1, // 1 minute
+        staleTime: 60 * 1000,
         refetchOnMount: true,
         refetchIntervalInBackground: true,
       },
     ),
   );
 
-  // Populate threadConnectionAtom when all-inboxes data arrives
   useEffect(() => {
     if (!isAllInboxes || !allInboxesQuery.data) return;
     const map: Record<string, string> = {};
@@ -73,8 +71,6 @@ export const useThreads = () => {
 
   const activeQuery = isAllInboxes ? allInboxesQuery : threadsQuery;
 
-  // Flatten threads from all pages and sort by receivedOn date (newest first)
-
   const threads = useMemo(() => {
     return activeQuery.data
       ? activeQuery.data.pages
@@ -82,9 +78,9 @@ export const useThreads = () => {
           .filter(Boolean)
           .filter((e) => !isInQueue(`thread:${e.id}`))
       : [];
-  }, [activeQuery.data, activeQuery.dataUpdatedAt, isInQueue, backgroundQueue]);
+  }, [activeQuery.data, isInQueue]);
 
-  const isEmpty = useMemo(() => threads.length === 0, [threads]);
+  const isEmpty = threads.length === 0;
   const isReachingEnd =
     isEmpty ||
     (activeQuery.data &&
@@ -101,8 +97,8 @@ export const useThreads = () => {
 export const useThread = (threadId: string | null, options?: { enabled?: boolean }) => {
   const { data: session } = useSession();
   const { data: activeConnection } = useActiveConnection();
-  const [_threadId] = useQueryState('threadId');
-  const id = threadId ? threadId : _threadId;
+  const [queryThreadId] = useQueryState('threadId');
+  const id = threadId ?? queryThreadId;
   const trpc = useTRPC();
   const { data: settings } = useSettings();
   const { theme: systemTheme } = useTheme();
@@ -140,14 +136,11 @@ export const useThread = (threadId: string | null, options?: { enabled?: boolean
       : undefined;
 
     const isGroupThread = threadQuery.data.latest?.id
-      ? (() => {
-          const totalRecipients = [
-            ...(threadQuery.data.latest.to || []),
-            ...(threadQuery.data.latest.cc || []),
-            ...(threadQuery.data.latest.bcc || []),
-          ].length;
-          return totalRecipients > 1;
-        })()
+      ? [
+          ...(threadQuery.data.latest.to || []),
+          ...(threadQuery.data.latest.cc || []),
+          ...(threadQuery.data.latest.bcc || []),
+        ].length > 1
       : false;
 
     const nonDraftMessages = threadQuery.data.messages.filter((e) => !e.isDraft);
@@ -165,16 +158,15 @@ export const useThread = (threadId: string | null, options?: { enabled?: boolean
     trpc.mail.processEmailContent.mutationOptions(),
   );
 
-  // Extract image loading condition to avoid duplication
   const shouldLoadImages = useMemo(() => {
     if (!settings?.settings || !latestMessage?.sender?.email) return false;
 
-    return settings.settings.externalImages ||
-      settings.settings.trustedSenders?.includes(latestMessage.sender.email) ||
-      false;
+    return !!(
+      settings.settings.externalImages ||
+      settings.settings.trustedSenders?.includes(latestMessage.sender.email)
+    );
   }, [settings?.settings, latestMessage?.sender?.email]);
 
-  // Prefetch query - intentionally unused, just for caching
   useQuery({
     queryKey: [
       'email-content',
@@ -201,8 +193,8 @@ export const useThread = (threadId: string | null, options?: { enabled?: boolean
       };
     },
     enabled: !!latestMessage?.decodedBody && !!settings?.settings,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });

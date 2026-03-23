@@ -74,13 +74,13 @@ export default function LoginPage() {
     <div className="flex min-h-screen w-full flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
-          <p className="mt-2 text-sm text-white/60">Log in to your account.</p>
+          <h1 className="text-2xl font-semibold">Welcome back</h1>
+          <p className="mt-2 text-sm">Log in to your account.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-white/80">
+            <label htmlFor="email" className="text-sm font-medium">
               Email
             </label>
             <Input
@@ -91,12 +91,11 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={isLoading}
-              className="border-white/10 bg-white/5 text-white placeholder:text-white/30"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-white/80">
+            <label htmlFor="password" className="text-sm font-medium">
               Password
             </label>
             <Input
@@ -107,7 +106,6 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isLoading}
-              className="border-white/10 bg-white/5 text-white placeholder:text-white/30"
             />
           </div>
 
@@ -119,9 +117,9 @@ export default function LoginPage() {
         {providers.length > 0 && (
           <>
             <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs text-white/40">Or continue with</span>
-              <div className="h-px flex-1 bg-white/10" />
+              <div className="h-px flex-1" />
+              <span className="text-xs">Or continue with</span>
+              <div className="h-px flex-1" />
             </div>
 
             <div className="flex flex-col gap-2">
@@ -143,9 +141,9 @@ export default function LoginPage() {
           </>
         )}
 
-        <p className="text-center text-sm text-white/40">
+        <p className="text-center text-sm">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-white/70 underline hover:text-white">
+          <Link href="/signup" className="underline">
             Sign up
           </Link>
         </p>
