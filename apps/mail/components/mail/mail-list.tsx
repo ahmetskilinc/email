@@ -3,8 +3,10 @@
 import { useOptimisticThreadState } from '@/components/mail/optimistic-thread-state';
 import { useIsFetching, type UseQueryResult } from '@tanstack/react-query';
 import type { ParsedDraft } from '../../../server/src/lib/driver/types';
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { focusedIndexAtom } from '@/hooks/use-mail-navigation';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { cleanNameDisplay } from '@/lib/mail/display-format';
 import { useThread, useThreads } from '@/hooks/use-threads';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
@@ -259,6 +261,10 @@ export function MailList() {
   const [, setThreadId] = useQueryState('threadId');
   const [, setDraftId] = useQueryState('draftId');
   const isDraft = folder === FOLDERS.DRAFT;
+  const isMobile = useIsMobile();
+  const scrollOffsetRef = useRef(0);
+  const [pullContainerEl, setPullContainerEl] = useState<HTMLDivElement | null>(null);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
 
   const [{ refetch, isLoading, isFetchingNextPage, hasNextPage }, items, , loadMore] = useThreads();
   const trpc = useTRPC();
@@ -275,6 +281,22 @@ export function MailList() {
     window.addEventListener('refreshMailList', handleRefresh);
     return () => window.removeEventListener('refreshMailList', handleRefresh);
   }, [refetch]);
+
+  const handlePullRefresh = useCallback(() => {
+    setPullRefreshing(true);
+    void refetch().finally(() => setPullRefreshing(false));
+  }, [refetch]);
+
+  const pullDistance = usePullToRefresh({
+    onRefresh: handlePullRefresh,
+    isRefreshing: pullRefreshing,
+    scrollOffsetRef,
+    enabled: isMobile && !isLoading,
+    container: pullContainerEl,
+  });
+
+  const translateY = pullDistance > 0 ? pullDistance : pullRefreshing ? 44 : 0;
+  const indicatorHeight = Math.max(pullDistance, pullRefreshing ? 44 : 0);
 
   const [, setFocusedIndex] = useAtom(focusedIndexAtom);
 
@@ -309,6 +331,7 @@ export function MailList() {
 
   const handleVListScroll = useCallback(
     (scrollOffset: number) => {
+      scrollOffsetRef.current = scrollOffset;
       const h = vListRef.current;
       if (!h) return;
       const endIndex = h.findItemIndex(scrollOffset + h.viewportSize - 1);
@@ -325,27 +348,51 @@ export function MailList() {
     [items.length, isLoading, isFetchingNextPage, isFetchingMail, hasNextPage, loadMore],
   );
 
+  const listContent = !items?.length ? (
+    <div className="flex h-full w-full items-center justify-center">
+      <p className="text-lg">It&apos;s empty here</p>
+    </div>
+  ) : (
+    <VList
+      ref={vListRef}
+      data={items}
+      bufferSize={500}
+      itemSize={100}
+      className="flex-1 overflow-x-hidden"
+      onScroll={handleVListScroll}
+    >
+      {renderItem}
+    </VList>
+  );
+
   return (
     <div className="flex h-full w-full flex-1 flex-col md:max-w-[400px] md:border-r">
       {isLoading ? (
         <div className="flex w-full flex-1 items-center justify-center">
           <MailListInlineSpinner />
         </div>
-      ) : !items?.length ? (
-        <div className="flex h-full w-full items-center justify-center">
-          <p className="text-lg">It&apos;s empty here</p>
+      ) : isMobile ? (
+        <div
+          ref={setPullContainerEl}
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          {pullDistance > 0 || pullRefreshing ? (
+            <div
+              className="pointer-events-none absolute top-0 right-0 left-0 z-10 flex items-end justify-center pb-1"
+              style={{ height: indicatorHeight }}
+            >
+              <MailListInlineSpinner />
+            </div>
+          ) : null}
+          <div
+            className="flex min-h-0 flex-1 flex-col"
+            style={{ transform: `translateY(${translateY}px)` }}
+          >
+            {listContent}
+          </div>
         </div>
       ) : (
-        <VList
-          ref={vListRef}
-          data={items}
-          bufferSize={500}
-          itemSize={100}
-          className="flex-1 overflow-x-hidden"
-          onScroll={handleVListScroll}
-        >
-          {renderItem}
-        </VList>
+        listContent
       )}
     </div>
   );
