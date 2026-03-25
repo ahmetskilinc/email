@@ -36,12 +36,6 @@ export const navigationConfig: Record<string, NavConfig> = {
     path: '/mail',
     items: [
       {
-        id: 'all-inbox',
-        title: 'All Inboxes',
-        href: '/mail/all-inboxes',
-        icon: Inbox,
-      },
-      {
         id: 'inbox',
         title: 'Inbox',
         href: '/mail/inbox',

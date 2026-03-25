@@ -1,32 +1,17 @@
-'use client';
-
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenu,
 } from '@/components/ui/sidebar';
-import { navigationConfig } from '@/config/navigation';
-import { usePathname } from 'next/navigation';
 import { MailPlus } from 'lucide-react';
 import { NavUser } from './nav-user';
 import { NavMain } from './nav-main';
-import { useMemo } from 'react';
 
 export function AppSidebar() {
-  const pathname = usePathname();
-  const { navItems } = useMemo(() => {
-    const section = Object.entries(navigationConfig).find(([, config]) =>
-      pathname.startsWith(config.path),
-    );
-
-    const currentSection = section?.[0] ?? 'mail';
-    return { navItems: navigationConfig[currentSection].items };
-  }, [pathname]);
-
   return (
     <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
@@ -50,13 +35,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain
-          items={navItems.map((item) => ({
-            title: item.title,
-            url: item.href,
-            icon: item.icon,
-          }))}
-        />
+        <NavMain />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
