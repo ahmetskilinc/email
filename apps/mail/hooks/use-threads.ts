@@ -1,19 +1,36 @@
-'use client'
-import { isThreadInBackgroundQueueAtom } from '@/store/backgroundQueue';
+'use client';
 import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import type { IGetThreadResponse } from '../../server/src/lib/driver/types';
+import { isThreadInBackgroundQueueAtom } from '@/store/backgroundQueue';
 import { threadConnectionAtom } from '@/store/threadConnection';
 import { useActiveConnection } from '@/hooks/use-connections';
 import { useSearchValue } from '@/hooks/use-search-value';
-import { useTRPC } from '@/providers/query-provider';
-import useSearchLabels from './use-labels-search';
-import { useSession } from '@/lib/auth-client';
-import { useAtomValue, useSetAtom } from 'jotai';
-import { useSettings } from './use-settings';
 import { useParams, usePathname } from 'next/navigation';
+import { useTRPC } from '@/providers/query-provider';
+import { ItemsRange } from 'virtua/unstable_core';
+import useSearchLabels from './use-labels-search';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { useSession } from '@/lib/auth-client';
+import { useSettings } from './use-settings';
+import { useEffect, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import { useQueryState } from 'nuqs';
-import { useEffect, useMemo } from 'react';
+
+function extractThreadDate(thread: { $raw?: unknown }): number {
+  const raw = thread.$raw as Record<string, unknown> | undefined;
+  if (!raw) return 0;
+
+  const preview = raw.preview as Record<string, unknown> | undefined;
+  if (preview?.receivedOn) return new Date(preview.receivedOn as string).getTime();
+
+  if (raw.receivedDateTime) return new Date(raw.receivedDateTime as string).getTime();
+
+  if (raw.receivedOn) return new Date(raw.receivedOn as string).getTime();
+
+  if (raw.internalDate) return Number(raw.internalDate);
+
+  return 0;
+}
 
 export const useThreads = () => {
   const { folder } = useParams<{ folder: string }>();
@@ -72,19 +89,20 @@ export const useThreads = () => {
   const activeQuery = isAllInboxes ? allInboxesQuery : threadsQuery;
 
   const threads = useMemo(() => {
-    return activeQuery.data
-      ? activeQuery.data.pages
-          .flatMap((e) => e.threads)
-          .filter(Boolean)
-          .filter((e) => !isInQueue(`thread:${e.id}`))
-      : [];
+    if (!activeQuery.data) return [];
+
+    const filtered = activeQuery.data.pages
+      .flatMap((e) => e.threads)
+      .filter(Boolean)
+      .filter((e) => !isInQueue(`thread:${e.id}`));
+
+    return filtered.sort((a, b) => extractThreadDate(b) - extractThreadDate(a));
   }, [activeQuery.data, isInQueue]);
 
   const isEmpty = threads.length === 0;
   const isReachingEnd =
     isEmpty ||
-    (activeQuery.data &&
-      !activeQuery.data.pages[activeQuery.data.pages.length - 1]?.nextPageToken);
+    (activeQuery.data && !activeQuery.data.pages[activeQuery.data.pages.length - 1]?.nextPageToken);
 
   const loadMore = async () => {
     if (activeQuery.isLoading || activeQuery.isFetching) return;
@@ -168,12 +186,7 @@ export const useThread = (threadId: string | null, options?: { enabled?: boolean
   }, [settings?.settings, latestMessage?.sender?.email]);
 
   useQuery({
-    queryKey: [
-      'email-content',
-      latestMessage?.id,
-      shouldLoadImages,
-      systemTheme,
-    ],
+    queryKey: ['email-content', latestMessage?.id, shouldLoadImages, systemTheme],
     queryFn: async () => {
       if (!latestMessage?.decodedBody || !settings?.settings) return null;
 

@@ -1,5 +1,10 @@
 import { MailLayout } from '@/components/mail/mail';
+import { Suspense } from 'react';
 
 export default function AllInboxesPage() {
-  return <MailLayout />;
+  return (
+    <Suspense>
+      <MailLayout />
+    </Suspense>
+  );
 }

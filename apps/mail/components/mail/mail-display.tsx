@@ -3,11 +3,11 @@
 import { MailDisplayMessageAttachments } from './mail-display-message-attachments';
 import { MailDisplayRecipientsSummary } from './mail-display-recipients-summary';
 import { cn, formatDate, formatTime, shouldShowSeparateTime } from '@/lib/utils';
+import { cleanEmailDisplay, cleanNameDisplay } from '@/lib/mail/display-format';
 import { MailDisplayDetailsPopover } from './mail-display-details-popover';
 import { MailDisplayAttachmentMenu } from './mail-display-attachment-menu';
 import { MailThreadAttachments } from './mail-thread-attachments';
 import { MailDisplayActionBar } from './mail-display-action-bar';
-import { cleanNameDisplay } from '@/lib/mail/display-format';
 import { BimiAvatar } from '@/components/ui/bimi-avatar';
 import { useAttachments } from '@/hooks/use-attachments';
 import type { Attachment, ParsedMessage } from '@/types';
@@ -60,7 +60,8 @@ export default function MailDisplay({
               <BimiAvatar email={emailData?.sender?.email} name={emailData?.sender?.name} />
               <div>
                 <div className="flex items-center justify-start gap-2">
-                  {cleanNameDisplay(emailData?.sender?.name)}
+                  {cleanNameDisplay(emailData?.sender?.name) ||
+                    cleanEmailDisplay(emailData?.sender?.email)}
                   <MailDisplayDetailsPopover emailData={emailData} />
                 </div>
                 <MailDisplayRecipientsSummary emailData={emailData} folder={folder} />

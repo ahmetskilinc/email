@@ -105,7 +105,7 @@ function MailListRow({
                       'text-md flex items-baseline gap-1 group-hover:opacity-100',
                     )}
                   >
-                    <span className="line-clamp-1 max-w-[190px] overflow-hidden text-sm">
+                    <span className="line-clamp-1 max-w-[190px] truncate overflow-hidden text-sm">
                       {title}
                     </span>
                     {unread && !isSelected ? (
