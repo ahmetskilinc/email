@@ -3,6 +3,7 @@ import { QueryProvider } from '@/providers/query-provider';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { siteConfig } from '@/lib/site-config';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 
 const geistSans = Geist({
@@ -36,9 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="antialiased">
-        <QueryProvider>
-          <ClientProviders>{children}</ClientProviders>
-        </QueryProvider>
+        <Suspense>
+          <QueryProvider>
+            <ClientProviders>{children}</ClientProviders>
+          </QueryProvider>
+        </Suspense>
       </body>
     </html>
   );

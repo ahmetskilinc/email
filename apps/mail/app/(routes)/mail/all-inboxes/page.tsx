@@ -1,10 +1,7 @@
 import { MailLayout } from '@/components/mail/mail';
-import { Suspense } from 'react';
+
+export const dynamic = 'force-dynamic';
 
 export default function AllInboxesPage() {
-  return (
-    <Suspense>
-      <MailLayout />
-    </Suspense>
-  );
+  return <MailLayout />;
 }

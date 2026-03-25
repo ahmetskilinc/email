@@ -5,6 +5,8 @@ import { MailLayout } from '@/components/mail/mail';
 import { useLabels } from '@/hooks/use-labels';
 import { useEffect, useMemo } from 'react';
 
+export const dynamic = 'force-dynamic';
+
 const ALLOWED_FOLDERS = new Set(['inbox', 'draft', 'sent', 'spam', 'bin', 'archive']);
 
 function checkLabelExists(labels: any[], id: string): boolean {

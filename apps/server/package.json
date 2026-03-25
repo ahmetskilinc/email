@@ -7,16 +7,12 @@
     "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
     "start": "dotenv -e ../../.env -- tsx src/main.ts",
     "start:prod": "tsx src/main.ts",
-    "deploy": "echo 'Node deployment handled externally'",
     "types": "tsc --noEmit",
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "eval": "evalite",
-    "eval:dev": "evalite watch",
-    "test:cron": "curl 'http://localhost:8787/cdn-cgi/handler/scheduled'"
+    "db:studio": "drizzle-kit studio"
   },
   "exports": {
     "./trpc": "./src/trpc/index.ts",
