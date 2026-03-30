@@ -1,3 +1,4 @@
 {
-  "extends": "@zeitmail/tsconfig/base"
+  "extends": "@workspace/typescript-config/base.json"
 }
+

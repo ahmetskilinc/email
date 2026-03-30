@@ -1,39 +1,37 @@
 {
-  "name": "zeitmail",
-  "version": "0.1.0",
+  "name": "email-app-new-new",
+  "version": "0.0.1",
   "private": true,
-  "packageManager": "bun@1.3.11",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "start": "turbo run start",
-    "lint": "turbo run lint",
-    "format": "prettier --write apps/**/*.{ts,tsx} --log-level silent",
-    "check": "bun run check:format && bun run lint",
-    "check:format": "prettier . --check",
-    "lint-staged": "prettier --write --ignore-unknown",
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "turbo format",
+    "typecheck": "turbo typecheck",
     "docker:up": "docker compose -f docker-compose.yaml up -d",
     "docker:stop": "docker compose -f docker-compose.yaml stop",
     "docker:down": "docker compose -f docker-compose.yaml down",
     "docker:clean": "docker compose -f docker-compose.yaml down -v",
-    "db:generate": "dotenv -- bun run --cwd apps/server db:generate",
-    "db:migrate": "dotenv -- bun run --cwd apps/server db:migrate",
-    "db:push": "dotenv -- bun run --cwd apps/server db:push",
-    "db:studio": "dotenv -- bun run --cwd apps/server db:studio"
+    "db:generate": "dotenv -- bun run --cwd apps/web db:generate",
+    "db:migrate": "dotenv -- bun run --cwd apps/web db:migrate",
+    "db:push": "dotenv -- bun run --cwd apps/web db:push",
+    "db:studio": "dotenv -- bun run --cwd apps/web db:studio"
   },
   "devDependencies": {
-    "@types/node": "24.3.0",
-    "@zeitmail/tsconfig": "workspace:*",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
     "dotenv-cli": "^11.0.0",
-    "prettier": "3.8.1",
-    "prettier-plugin-sort-imports": "1.8.11",
-    "prettier-plugin-tailwindcss": "0.7.2",
-    "tsx": "4.21.0",
-    "turbo": "^2.8.20",
-    "typescript": "^5.9.3"
-  }
+    "prettier": "^3.8.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "turbo": "^2.8.21",
+    "typescript": "6.0.2"
+  },
+  "packageManager": "bun@1.3.11",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }
