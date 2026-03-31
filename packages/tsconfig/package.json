@@ -1,0 +1,7 @@
+{
+  "name": "@zeitmail/tsconfig",
+  "private": true,
+  "exports": {
+    "./base": "./base.json"
+  }
+}

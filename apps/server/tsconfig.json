@@ -1,0 +1,18 @@
+{
+  "extends": "@zeitmail/tsconfig/base",
+  "include": [
+    "src/main.ts",
+    "src/env.ts",
+    "src/types.ts",
+    "src/db/**/*.ts",
+    "src/lib/driver/**/*.ts",
+    "src/lib/transport/**/*.ts"
+  ],
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
+  }
+}
